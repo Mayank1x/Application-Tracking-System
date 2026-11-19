@@ -45,6 +45,7 @@ def extract_required_experience(jd_text: str) -> Dict[str, any]:
     """
     Extract required years of experience (min, max, level).
     Handles patterns like:
+      - '0 years', '0-1 years', 'fresher', 'entry level', 'no experience required'
       - '3-5 years of experience'
       - 'minimum 4+ years'
       - 'at least 2 years'
@@ -52,7 +53,22 @@ def extract_required_experience(jd_text: str) -> Dict[str, any]:
     """
     text_lower = jd_text.lower()
     
-    # Pattern 1: Range like '3 to 5 years' or '3-5 years'
+    # Priority Check: Explicit 0 years / Fresher / Entry Level / Internship
+    fresher_patterns = [
+        r"\b(?:0\s*(?:-|to)\s*[01]|0\+?)\s*(?:years?|yrs?)",
+        r"\b(?:no\s+prior\s+experience|no\s+experience\s+required|freshers?\s+welcome|freshers?\s+can\s+apply|fresher)\b",
+        r"\b(?:entry[\s-]level|intern|internship|trainee|campus\s+hire)\b"
+    ]
+    for fp in fresher_patterns:
+        if re.search(fp, text_lower):
+            return {
+                "min_years": 0.0,
+                "max_years": 1.0,
+                "display": "0–1 years (Fresher / Entry)",
+                "tier": "Fresher / Entry",
+            }
+
+    # Pattern 1: Range like '3 to 5 years' or '3-5 years' or '0-2 years'
     range_match = re.search(r"(\d+(?:\.\d+)?)\s*(?:-|to)\s*(\d+(?:\.\d+)?)\s*(?:\+)?\s*(?:years?|yrs?)", text_lower)
     if range_match:
         min_y = float(range_match.group(1))
@@ -60,11 +76,11 @@ def extract_required_experience(jd_text: str) -> Dict[str, any]:
         return {
             "min_years": min_y,
             "max_years": max_y,
-            "display": f"{min_y:g}–{max_y:g} years",
+            "display": f"{min_y:g}–{max_y:g} years" if min_y > 0 else f"0–{max_y:g} years (Entry Level)",
             "tier": "Senior" if min_y >= 5 else "Mid-Level" if min_y >= 2 else "Junior / Entry",
         }
 
-    # Pattern 2: Single number like '3+ years', 'minimum 3 years', 'at least 5 yrs'
+    # Pattern 2: Single number like '3+ years', 'minimum 3 years', 'at least 5 yrs', '0 years'
     single_patterns = [
         r"(?:min(?:imum)?|at\s+least|over)?\s*(\d+(?:\.\d+)?)\+?\s*(?:years?|yrs?)(?:\s+of)?(?:\s+(?:professional|relevant|work|industry))?\s+experience",
         r"experience\s*(?:required)?\s*:\s*(\d+(?:\.\d+)?)\+?\s*(?:years?|yrs?)",
@@ -73,15 +89,24 @@ def extract_required_experience(jd_text: str) -> Dict[str, any]:
         m = re.search(pat, text_lower)
         if m:
             min_y = float(m.group(1))
-            if 0 < min_y <= 20:
+            if 0 <= min_y <= 20:
                 return {
                     "min_years": min_y,
                     "max_years": None,
-                    "display": f"{min_y:g}+ years",
+                    "display": f"{min_y:g}+ years" if min_y > 0 else "0 years (Fresher)",
                     "tier": "Senior" if min_y >= 5 else "Mid-Level" if min_y >= 2 else "Junior / Entry",
                 }
 
-    # Default to 2 years if unstated for industry roles
+    # Default to 0 years if fresher-oriented role title, else 2 years
+    title_lower = extract_job_title(jd_text).lower()
+    if any(term in title_lower for term in ["intern", "fresher", "trainee", "junior", "associate"]):
+        return {
+            "min_years": 0.0,
+            "max_years": 1.0,
+            "display": "0–1 years (Junior / Entry)",
+            "tier": "Junior / Entry",
+        }
+
     return {
         "min_years": 2.0,
         "max_years": None,

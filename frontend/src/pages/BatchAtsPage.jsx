@@ -192,12 +192,36 @@ export default function BatchAtsPage({
     const [inviteCandidate, setInviteCandidate] = useState(null);
     const [interviewType, setInterviewType] = useState('Technical Interview');
 
+    // ── Helper: Extract experience requirement from JD text ──
+    const parseJdExperience = (text) => {
+        if (!text) return '0 years (Fresher)';
+        const t = text.toLowerCase();
+        if (/\b(?:0\s*(?:-|to)\s*[01]|0\+?)\s*(?:years?|yrs?)/i.test(t) ||
+            /\b(?:no\s+prior\s+experience|no\s+experience\s+required|freshers?\s+welcome|freshers?\s+can\s+apply|fresher)\b/i.test(t) ||
+            /\b(?:entry[\s-]level|intern|internship|trainee|campus\s+hire)\b/i.test(t)) {
+            return '0 years (Fresher)';
+        }
+        const range = t.match(/(\d+(?:\.\d+)?)\s*(?:-|to)\s*(\d+(?:\.\d+)?)\s*(?:\+)?\s*(?:years?|yrs?)/);
+        if (range) {
+            const min = parseFloat(range[1]);
+            const max = parseFloat(range[2]);
+            return min === 0 ? `0–${max} years (Entry Level)` : `${min}–${max} years`;
+        }
+        const single = t.match(/(\d+(?:\.\d+)?)\+?\s*(?:years?|yrs?)(?:\s+of)?(?:\s+(?:professional|relevant|work|industry))?\s+experience/);
+        if (single) {
+            const y = parseFloat(single[1]);
+            return y === 0 ? '0 years (Fresher)' : `${y}+ years`;
+        }
+        return '0 years (Fresher)';
+    };
+
     // ── New Position Modal State ──
     const [newPosJobId, setNewPosJobId] = useState('');
     const [newPosTitle, setNewPosTitle] = useState('');
     const [newPosDept, setNewPosDept] = useState('AI & Engineering');
     const [newPosStatus, setNewPosStatus] = useState('Open'); // 'Open' | 'Draft' | 'Closed'
     const [newPosMeta, setNewPosMeta] = useState('');
+    const [newPosExp, setNewPosExp] = useState('0 years (Fresher)');
     const [newPosJd, setNewPosJd] = useState('');
 
     // ── Jobs View State ──
@@ -684,6 +708,8 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
             border = 'rgba(220, 38, 38, 0.3)';
         }
 
+        const expToUse = newPosExp.trim() || parseJdExperience(newPosJd);
+
         const newPos = {
             id: `pos-${Date.now()}`,
             jobId: jobIdToUse,
@@ -693,12 +719,12 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
             statusColor: color,
             statusBg: bg,
             statusBorder: border,
-            meta: newPosMeta || 'Full-time | Remote OK',
-            experienceRequired: '2-4 years',
+            meta: newPosMeta || `Full-time | Remote | ${expToUse}`,
+            experienceRequired: expToUse,
             educationRequired: "Bachelor's Degree",
             location: 'Remote / Global',
             workType: 'Full-time',
-            salaryRange: '$100k-$130k',
+            salaryRange: '$80k-$110k',
             description: newPosJd.trim() || newPosTitle.trim()
         };
         setPositions(prev => [newPos, ...prev]);
@@ -706,10 +732,11 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
         setShowNewPositionModal(false);
         setNewPosJobId('');
         setNewPosTitle('');
+        setNewPosExp('0 years (Fresher)');
         setNewPosStatus('Open');
         setNewPosMeta('');
         setNewPosJd('');
-        if (showToast) showToast(`Position "${newPos.title}" (${jobIdToUse}) created.`);
+        if (showToast) showToast(`Position "${newPos.title}" (${jobIdToUse}) created with ${expToUse}.`);
     };
 
     // ── All candidates aggregated across all evaluated positions ──
@@ -2145,33 +2172,32 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                             style={{
                                                 background: isSelected ? (theme === 'dark' ? '#0d1117' : '#f0fdf4') : 'var(--card-bg)',
                                                 border: isSelected ? '2px solid #059669' : '1px solid var(--border-default)',
-                                                borderRadius: '10px',
-                                                padding: '14px 18px',
-                                                marginBottom: '10px',
+                                                borderRadius: '8px',
+                                                padding: '12px 16px',
+                                                marginBottom: '8px',
                                                 cursor: 'pointer',
                                                 display: 'flex',
                                                 flexDirection: 'column',
-                                                gap: '8px',
-                                                boxShadow: isSelected ? '0 4px 16px rgba(5, 150, 105, 0.16)' : 'var(--card-shadow)',
+                                                gap: '6px',
+                                                boxShadow: isSelected ? '0 4px 12px rgba(5, 150, 105, 0.14)' : 'var(--card-shadow)',
                                                 transition: 'all 0.15s ease'
                                             }}
                                         >
-                                            {/* Row 1: Checkbox + Avatar + Name + Score + Stage + Invite */}
-                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            {/* Line 1: Checkbox, Avatar, Name, Email, Score Pill, Stage Dropdown, Invite */}
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
                                                     <input
                                                         type="checkbox"
                                                         checked={isChecked}
                                                         onChange={(e) => handleToggleCandidate(cand.candidate_id, e)}
                                                         onClick={(e) => e.stopPropagation()}
-                                                        style={{ cursor: 'pointer', accentColor: '#059669' }}
+                                                        style={{ cursor: 'pointer', accentColor: '#059669', flexShrink: 0 }}
                                                     />
 
-                                                    {/* Initials Avatar */}
                                                     <div style={{
-                                                        width: '32px',
-                                                        height: '32px',
-                                                        borderRadius: '8px',
+                                                        width: '30px',
+                                                        height: '30px',
+                                                        borderRadius: '6px',
                                                         background: cand.overall_score >= 80 ? 'rgba(5, 150, 105, 0.15)' : cand.overall_score >= 60 ? 'rgba(37, 99, 235, 0.15)' : 'rgba(220, 38, 38, 0.15)',
                                                         color: cand.overall_score >= 80 ? '#059669' : cand.overall_score >= 60 ? '#2563eb' : '#dc2626',
                                                         display: 'flex',
@@ -2184,19 +2210,18 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                                         {initials}
                                                     </div>
 
-                                                    <div>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <div style={{ minWidth: 0 }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                                                             <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
                                                                 {cand.name}
                                                             </span>
-                                                            {/* Score Pill */}
                                                             <span style={{
                                                                 fontSize: '11px',
                                                                 fontWeight: 700,
                                                                 color: cand.overall_score >= 80 ? 'var(--score-high)' : cand.overall_score >= 60 ? 'var(--score-mid)' : 'var(--score-low)',
                                                                 background: cand.overall_score >= 80 ? 'var(--score-high-bg)' : cand.overall_score >= 60 ? 'var(--score-mid-bg)' : 'var(--score-low-bg)',
                                                                 border: `1px solid ${cand.overall_score >= 80 ? 'var(--score-high-border)' : cand.overall_score >= 60 ? 'var(--score-mid-border)' : 'var(--score-low-border)'}`,
-                                                                padding: '2px 8px',
+                                                                padding: '1px 7px',
                                                                 borderRadius: '999px',
                                                                 display: 'inline-flex',
                                                                 alignItems: 'center',
@@ -2211,26 +2236,39 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                                     </div>
                                                 </div>
 
-                                                {/* Stage Pill + INVITE Button */}
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                    <span style={{
-                                                        fontSize: '11px',
-                                                        fontWeight: 600,
-                                                        padding: '3px 12px',
-                                                        borderRadius: '999px',
-                                                        background: stage === 'Offer' ? 'var(--score-high-bg)' : stage === 'Interview' ? 'rgba(37, 99, 235, 0.12)' : 'var(--score-low-bg)',
-                                                        color: stage === 'Offer' ? 'var(--score-high)' : stage === 'Interview' ? 'var(--accent-blue)' : 'var(--score-low)',
-                                                        border: `1px solid ${stage === 'Offer' ? 'var(--score-high-border)' : stage === 'Interview' ? 'rgba(37, 99, 235, 0.3)' : 'var(--score-low-border)'}`
-                                                    }}>
-                                                        {stage}
-                                                    </span>
+                                                {/* Stage Dropdown + INVITE Button */}
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                                                    <select
+                                                        value={stage}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        onChange={(e) => {
+                                                            e.stopPropagation();
+                                                            handleSetStage(cand.candidate_id, e.target.value);
+                                                        }}
+                                                        style={{
+                                                            fontSize: '11px',
+                                                            fontWeight: 700,
+                                                            padding: '3px 8px',
+                                                            borderRadius: '999px',
+                                                            background: stage === 'Offer' ? 'var(--score-high-bg)' : stage === 'Interview' ? 'rgba(37, 99, 235, 0.12)' : stage === 'Reject' ? 'rgba(220, 38, 38, 0.12)' : 'var(--bg-subtle)',
+                                                            color: stage === 'Offer' ? 'var(--score-high)' : stage === 'Interview' ? '#2563eb' : stage === 'Reject' ? '#dc2626' : 'var(--text-secondary)',
+                                                            border: `1px solid ${stage === 'Offer' ? 'var(--score-high-border)' : stage === 'Interview' ? 'rgba(37, 99, 235, 0.3)' : stage === 'Reject' ? 'rgba(220, 38, 38, 0.3)' : 'var(--border-default)'}`,
+                                                            cursor: 'pointer',
+                                                            outline: 'none'
+                                                        }}
+                                                    >
+                                                        <option value="Screen">Screen</option>
+                                                        <option value="Interview">Interview</option>
+                                                        <option value="Offer">Offer</option>
+                                                        <option value="Reject">Reject</option>
+                                                    </select>
 
                                                     <button
                                                         onClick={(e) => handleOpenInvite(cand, e)}
                                                         style={{
                                                             background: 'transparent',
                                                             border: '1px solid var(--border-default)',
-                                                            padding: '4px 10px',
+                                                            padding: '3px 9px',
                                                             borderRadius: '6px',
                                                             fontSize: '11px',
                                                             fontWeight: 700,
@@ -2253,8 +2291,8 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                                 </div>
                                             </div>
 
-                                            {/* Row 2: Subtitle info - Location, Email, LinkedIn, CV Link */}
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '11px', color: 'var(--text-secondary)', marginLeft: '42px', flexWrap: 'wrap' }}>
+                                            {/* Line 2: CV Link • Email • Experience Tag • Top 3 Skills */}
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: 'var(--text-secondary)', paddingLeft: '40px', flexWrap: 'wrap' }}>
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); handleDownloadCv(cand); }}
                                                     style={{
@@ -2271,35 +2309,11 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                                 </button>
                                                 <span>•</span>
                                                 <span>{cand.email}</span>
-                                                {cand.location && (
-                                                    <>
-                                                        <span>•</span>
-                                                        <span>{cand.location}</span>
-                                                    </>
-                                                )}
-                                                {cand.linkedin && (
-                                                    <>
-                                                        <span>•</span>
-                                                        <a
-                                                            href={`https://${cand.linkedin}`}
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                            onClick={(e) => e.stopPropagation()}
-                                                            style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 500 }}
-                                                        >
-                                                            {cand.linkedin}
-                                                        </a>
-                                                    </>
-                                                )}
-                                            </div>
-
-                                            {/* Row 3: Key JD Fit Highlights (Chips directly in card) */}
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginLeft: '42px', marginTop: '2px' }}>
-                                                {/* Experience Delta Chip */}
+                                                <span>•</span>
                                                 <span style={{
                                                     fontSize: '10px',
                                                     fontWeight: 600,
-                                                    padding: '2px 7px',
+                                                    padding: '1px 6px',
                                                     borderRadius: '4px',
                                                     background: cand.experience_years === 0 ? 'rgba(59, 130, 246, 0.1)' : 'var(--bg-subtle)',
                                                     color: cand.experience_years === 0 ? '#2563eb' : 'var(--text-primary)',
@@ -2307,51 +2321,46 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                                 }}>
                                                     {cand.experience_formatted} {cand.experience_status ? `(${cand.experience_status})` : ''}
                                                 </span>
-
-                                                {/* Matched skills preview */}
-                                                {cand.matched_mandatory?.slice(0, 4).map((sk, i) => (
+                                                {cand.matched_mandatory?.slice(0, 3).map((sk, i) => (
                                                     <span
-                                                        key={`prev-m-${i}`}
+                                                        key={`sk-${i}`}
                                                         style={{
                                                             fontSize: '10px',
                                                             fontWeight: 600,
-                                                            padding: '2px 6px',
+                                                            padding: '1px 5px',
                                                             borderRadius: '4px',
                                                             background: 'var(--score-high-bg)',
                                                             color: 'var(--score-high)',
                                                             border: '1px solid var(--score-high-border)',
                                                             display: 'inline-flex',
                                                             alignItems: 'center',
-                                                            gap: '3px'
+                                                            gap: '2px'
                                                         }}
                                                     >
-                                                        <Check size={10} strokeWidth={2.5} /> {sk}
+                                                        <Check size={9} strokeWidth={2.5} /> {sk}
                                                     </span>
                                                 ))}
-
-                                                {cand.matched_mandatory && cand.matched_mandatory.length > 4 && (
+                                                {cand.matched_mandatory && cand.matched_mandatory.length > 3 && (
                                                     <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', fontWeight: 600 }}>
-                                                        +{cand.matched_mandatory.length - 4} more
+                                                        +{cand.matched_mandatory.length - 3}
                                                     </span>
                                                 )}
-
-                                                {/* Missing mandatory alert */}
                                                 {cand.missing_mandatory && cand.missing_mandatory.length > 0 && (
                                                     <span
                                                         style={{
                                                             fontSize: '10px',
                                                             fontWeight: 500,
-                                                            padding: '2px 6px',
+                                                            padding: '1px 5px',
                                                             borderRadius: '4px',
                                                             background: 'var(--score-low-bg)',
                                                             color: 'var(--score-low)',
                                                             border: '1px solid var(--score-low-border)',
                                                             display: 'inline-flex',
                                                             alignItems: 'center',
-                                                            gap: '3px'
+                                                            gap: '2px'
                                                         }}
                                                     >
-                                                        <AlertCircle size={10} /> missing: {cand.missing_mandatory[0]}
+                                                        <AlertCircle size={9} /> {cand.missing_mandatory.length} missing
                                                     </span>
                                                 )}
                                             </div>
@@ -2363,27 +2372,21 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                     </div>
 
                     {/* ── COLUMN 4: Selected Candidate Drilldown (DEEP ACC-TO-JD EVALUATION PANEL) ── */}
-                    <div style={{
-                        width: '380px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        background: 'var(--bg-app)',
-                        flexShrink: 0,
-                        overflowY: 'auto',
-                        padding: '16px',
-                        gap: '14px'
-                    }}>
-                        {!selectedCandidate ? (
-                            <div style={{ textAlign: 'center', padding: '60px 16px', color: 'var(--text-tertiary)', fontSize: '12px', background: 'var(--card-bg)', borderRadius: '10px', border: '1px solid var(--border-default)', boxShadow: 'var(--card-shadow)' }}>
-                                <User size={36} style={{ color: 'var(--text-tertiary)', marginBottom: '8px' }} />
-                                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>Select a Candidate</div>
-                                <div style={{ fontSize: '12px', marginTop: '4px' }}>Choose a profile from the ranking list to view JD-aligned fit analysis, gap matrix, and AI probing questions.</div>
-                            </div>
-                        ) : (
-                            <>
-                                {/* Card 1: Candidate Overview & Quick Contact Card */}
-                                <div style={{
-                                    background: 'var(--card-bg)',
+                    {selectedCandidate && (
+                        <div style={{
+                            width: '380px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            background: 'var(--bg-app)',
+                            borderLeft: '1px solid var(--border-default)',
+                            flexShrink: 0,
+                            overflowY: 'auto',
+                            padding: '16px',
+                            gap: '14px'
+                        }}>
+                            {/* Card 1: Candidate Overview & Quick Contact Card */}
+                            <div style={{
+                                background: 'var(--card-bg)',
                                     border: '1px solid var(--border-default)',
                                     borderRadius: '10px',
                                     padding: '16px',
@@ -2396,25 +2399,42 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                         <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                             Candidate Profile
                                         </span>
-                                        <button
-                                            onClick={(e) => handleOpenInvite(selectedCandidate, e)}
-                                            style={{
-                                                background: '#059669',
-                                                color: '#ffffff',
-                                                border: 'none',
-                                                fontSize: '11px',
-                                                fontWeight: 600,
-                                                padding: '5px 12px',
-                                                borderRadius: '6px',
-                                                cursor: 'pointer',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '4px',
-                                                boxShadow: '0 2px 6px rgba(5, 150, 105, 0.3)'
-                                            }}
-                                        >
-                                            <Calendar size={12} /> Invite to Interview
-                                        </button>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <button
+                                                onClick={(e) => handleOpenInvite(selectedCandidate, e)}
+                                                style={{
+                                                    background: '#059669',
+                                                    color: '#ffffff',
+                                                    border: 'none',
+                                                    fontSize: '11px',
+                                                    fontWeight: 600,
+                                                    padding: '4px 10px',
+                                                    borderRadius: '6px',
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '4px',
+                                                    boxShadow: '0 2px 6px rgba(5, 150, 105, 0.3)'
+                                                }}
+                                            >
+                                                <Calendar size={12} /> Invite
+                                            </button>
+                                            <button
+                                                onClick={() => setSelectedCandidate(null)}
+                                                title="Close profile panel to see wide candidate list"
+                                                style={{
+                                                    background: 'transparent',
+                                                    border: 'none',
+                                                    cursor: 'pointer',
+                                                    color: 'var(--text-tertiary)',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    padding: '2px'
+                                                }}
+                                            >
+                                                <X size={16} />
+                                            </button>
+                                        </div>
                                     </div>
 
                                     <div>
@@ -2801,48 +2821,6 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                                     </div>
                                                 ))}
                                             </div>
-
-                                            {/* AI Interview Questions to Probe Skill Gaps */}
-                                            {selectedCandidate.probing_questions?.length > 0 && (
-                                                <div style={{
-                                                    fontSize: '11px',
-                                                    color: 'var(--text-secondary)',
-                                                    lineHeight: 1.5,
-                                                    background: 'rgba(37, 99, 235, 0.06)',
-                                                    border: '1px solid rgba(37, 99, 235, 0.2)',
-                                                    borderRadius: '6px',
-                                                    padding: '10px'
-                                                }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                                                        <div style={{ fontWeight: 700, color: '#2563eb' }}>
-                                                            Recommended Technical Probing Questions:
-                                                        </div>
-                                                        <button
-                                                            onClick={() => handleCopyText(selectedCandidate.probing_questions.map((q, i) => `${i + 1}. ${q}`).join('\n'), 'Interview Questions')}
-                                                            style={{
-                                                                background: 'transparent',
-                                                                border: '1px solid rgba(37, 99, 235, 0.3)',
-                                                                borderRadius: '4px',
-                                                                padding: '2px 8px',
-                                                                fontSize: '10px',
-                                                                fontWeight: 600,
-                                                                color: '#2563eb',
-                                                                cursor: 'pointer',
-                                                                display: 'inline-flex',
-                                                                alignItems: 'center',
-                                                                gap: '4px'
-                                                            }}
-                                                        >
-                                                            <Copy size={11} /> Copy Questions
-                                                        </button>
-                                                    </div>
-                                                    {selectedCandidate.probing_questions.map((q, idx) => (
-                                                        <div key={idx} style={{ marginBottom: '4px', fontStyle: 'italic' }}>
-                                                            {idx + 1}. {q}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
                                         </div>
 
                                         {/* Card 5: Pipeline Progression & Team Collaboration Notes */}
@@ -2856,52 +2834,73 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                             flexDirection: 'column',
                                             gap: '12px'
                                         }}>
-                                            <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                                Recruitment Pipeline Stage Action
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                                <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                                    Recruitment Pipeline Stage
+                                                </div>
+                                                <select
+                                                    value={candidateStages[selectedCandidate.candidate_id] || (selectedCandidate.overall_score >= 80 ? 'Offer' : selectedCandidate.overall_score >= 60 ? 'Interview' : 'Reject')}
+                                                    onChange={(e) => handleSetStage(selectedCandidate.candidate_id, e.target.value)}
+                                                    style={{
+                                                        fontSize: '11px',
+                                                        fontWeight: 700,
+                                                        padding: '3px 8px',
+                                                        borderRadius: '6px',
+                                                        border: '1px solid var(--border-default)',
+                                                        background: 'var(--bg-subtle)',
+                                                        color: 'var(--text-primary)',
+                                                        cursor: 'pointer'
+                                                    }}
+                                                >
+                                                    <option value="Screen">Screen</option>
+                                                    <option value="Interview">Interview</option>
+                                                    <option value="Offer">Offer</option>
+                                                    <option value="Reject">Reject</option>
+                                                </select>
                                             </div>
 
                                             {/* Stage Stepper Buttons */}
                                             <div style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
+                                                display: 'grid',
+                                                gridTemplateColumns: 'repeat(4, 1fr)',
                                                 gap: '6px',
                                                 background: 'var(--bg-subtle)',
                                                 padding: '6px',
                                                 borderRadius: '8px',
                                                 border: '1px solid var(--border-default)'
                                             }}>
-                                                {['Screen', 'Interview', 'Offer'].map((stg, i, arr) => {
-                                                    const current = candidateStages[selectedCandidate.candidate_id] || 'Screen';
-                                                    const isActive = current === stg;
+                                                {[
+                                                    { name: 'Screen', activeBg: '#64748b', activeBorder: '#475569' },
+                                                    { name: 'Interview', activeBg: '#2563eb', activeBorder: '#1d4ed8' },
+                                                    { name: 'Offer', activeBg: '#059669', activeBorder: '#047857' },
+                                                    { name: 'Reject', activeBg: '#dc2626', activeBorder: '#b91c1c' }
+                                                ].map(stg => {
+                                                    const current = candidateStages[selectedCandidate.candidate_id] || (selectedCandidate.overall_score >= 80 ? 'Offer' : selectedCandidate.overall_score >= 60 ? 'Interview' : 'Reject');
+                                                    const isActive = current === stg.name;
                                                     return (
-                                                        <React.Fragment key={stg}>
-                                                            <button
-                                                                onClick={() => handleSetStage(selectedCandidate.candidate_id, stg)}
-                                                                style={{
-                                                                    flex: 1,
-                                                                    padding: '7px 0',
-                                                                    borderRadius: '6px',
-                                                                    fontSize: '11px',
-                                                                    fontWeight: 700,
-                                                                    background: isActive ? '#059669' : 'transparent',
-                                                                    color: isActive ? '#ffffff' : 'var(--text-secondary)',
-                                                                    border: isActive ? '1px solid #047857' : '1px solid transparent',
-                                                                    cursor: 'pointer',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    justifyContent: 'center',
-                                                                    gap: '4px',
-                                                                    boxShadow: isActive ? '0 2px 6px rgba(5, 150, 105, 0.3)' : 'none',
-                                                                    transition: 'all 0.15s ease'
-                                                                }}
-                                                            >
-                                                                {isActive && <Check size={11} strokeWidth={3} />}
-                                                                {stg}
-                                                            </button>
-                                                            {i < arr.length - 1 && (
-                                                                <span style={{ color: 'var(--text-tertiary)', fontSize: '12px' }}>&rarr;</span>
-                                                            )}
-                                                        </React.Fragment>
+                                                        <button
+                                                            key={stg.name}
+                                                            onClick={() => handleSetStage(selectedCandidate.candidate_id, stg.name)}
+                                                            style={{
+                                                                padding: '6px 0',
+                                                                borderRadius: '6px',
+                                                                fontSize: '11px',
+                                                                fontWeight: 700,
+                                                                background: isActive ? stg.activeBg : 'transparent',
+                                                                color: isActive ? '#ffffff' : 'var(--text-secondary)',
+                                                                border: isActive ? `1px solid ${stg.activeBorder}` : '1px solid transparent',
+                                                                cursor: 'pointer',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                gap: '3px',
+                                                                boxShadow: isActive ? '0 2px 6px rgba(0,0,0,0.2)' : 'none',
+                                                                transition: 'all 0.15s ease'
+                                                            }}
+                                                        >
+                                                            {isActive && <Check size={10} strokeWidth={3} />}
+                                                            {stg.name}
+                                                        </button>
                                                     );
                                                 })}
                                             </div>
@@ -3010,10 +3009,9 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                             {selectedCandidate.raw_text || selectedCandidate.summary || 'No text extracted.'}
                                         </div>
                                     </div>
-                                )}
-                            </>
-                        )}
-                    </div>
+                            )}
+                        </div>
+                    )}
                 </>
             )}
 
@@ -3288,15 +3286,19 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                 </div>
                                 <div>
                                     <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, marginBottom: '4px' }}>
-                                        Meta (Salary, Location)
+                                        Experience Required
                                     </label>
-                                    <input
-                                        type="text"
-                                        placeholder="e.g. $100k-$130k | Full-time | Remote"
-                                        value={newPosMeta}
-                                        onChange={(e) => setNewPosMeta(e.target.value)}
+                                    <select
+                                        value={newPosExp}
+                                        onChange={(e) => setNewPosExp(e.target.value)}
                                         style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-default)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontSize: '12px' }}
-                                    />
+                                    >
+                                        <option value="0 years (Fresher)">0 years (Fresher / Entry Level)</option>
+                                        <option value="1-2 years">1-2 years (Junior)</option>
+                                        <option value="2-4 years">2-4 years (Mid-Level)</option>
+                                        <option value="3-5 years">3-5 years (Mid-Senior)</option>
+                                        <option value="5+ years">5+ years (Senior / Lead)</option>
+                                    </select>
                                 </div>
                             </div>
 
