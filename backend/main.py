@@ -51,7 +51,13 @@ class DemoBatchRequest(BaseModel):
 
 # ── Endpoints ──
 
-@app.get("/api/health")
+@app.api_route("/", methods=["GET", "HEAD"])
+async def root():
+    """Root ping endpoint for monitors and health checks."""
+    return {"status": "ok", "service": "Candidate Ranking ATS Engine", "docs": "/docs"}
+
+
+@app.api_route("/api/health", methods=["GET", "HEAD"])
 async def health():
     """System health check endpoint."""
     return {
