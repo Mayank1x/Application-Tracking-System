@@ -1,0 +1,41 @@
+# Python cache and artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+backend/firebase_key.json
+*.pem
+*.key
+
+# Logs and local runtime files
+*.log
+logs/
+
+# Build outputs
+build/
+dist/
+
+# Frontend artifacts
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Editor/system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
