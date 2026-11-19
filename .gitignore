@@ -24,6 +24,7 @@ backend/firebase_key.json
 # Logs and local runtime files
 *.log
 logs/
+backend/uploads/
 
 # Build outputs
 build/
