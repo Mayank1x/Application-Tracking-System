@@ -20,7 +20,6 @@ const PRESET_POSITIONS = [
         jobId: 'REQ-101',
         department: 'AI & Engineering',
         title: 'Senior Full Stack & AI Developer',
-        subtitle: '10 candidates in pipeline | 4 shortlisted',
         status: 'Open',
         statusColor: '#059669',
         statusBg: 'var(--score-high-bg)',
@@ -54,7 +53,6 @@ Nice to Have (Bonus Skills):
         jobId: 'REQ-102',
         department: 'Backend Engineering',
         title: 'Backend Developer - Lisbon',
-        subtitle: '8 candidates in pipeline | 2 shortlisted',
         status: 'Open',
         statusColor: '#059669',
         statusBg: 'var(--score-high-bg)',
@@ -74,7 +72,6 @@ Experience Required: 3+ years in Python, FastAPI/Django, PostgreSQL, Redis, Dock
         jobId: 'REQ-103',
         department: 'Infrastructure & Cloud',
         title: 'DevOps Engineer - Berlin',
-        subtitle: '5 candidates in pipeline | 1 shortlisted',
         status: 'Open',
         statusColor: '#059669',
         statusBg: 'var(--score-high-bg)',
@@ -94,7 +91,6 @@ Experience: 4+ years in AWS, Kubernetes (K8s), Docker, Terraform, CI/CD, and Lin
         jobId: 'REQ-104',
         department: 'Data Science',
         title: 'Data Scientist - New York',
-        subtitle: '10 candidates in pipeline | 4 shortlisted',
         status: 'Draft',
         statusColor: '#d97706',
         statusBg: 'var(--score-mid-bg)',
@@ -114,7 +110,6 @@ Experience: 2+ years in Machine Learning, Python, SQL, and Power BI.`
         jobId: 'REQ-105',
         department: 'Product Design',
         title: 'Senior Product Designer - Global',
-        subtitle: '12 candidates in pipeline | 3 shortlisted',
         status: 'Closed',
         statusColor: '#dc2626',
         statusBg: 'var(--score-low-bg)',
@@ -148,12 +143,34 @@ export default function BatchAtsPage({
     const [showNewPositionModal, setShowNewPositionModal] = useState(false);
     const [showJdDetailsModal, setShowJdDetailsModal] = useState(false);
 
-    // ── Candidates & Ranking State (Clean initial load) ──
+    // ── Candidates & Ranking State (Dynamic real-time storage per position) ──
     const [candidateSearch, setCandidateSearch] = useState('');
     const [sortBy, setSortBy] = useState('score'); // 'score' | 'exp' | 'name' | 'skills'
     const [selectedCandidateIds, setSelectedCandidateIds] = useState(new Set());
     const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [results, setResults] = useState(null);
+    const [positionResults, setPositionResults] = useState({});
+    const results = positionResults[activePositionId] || null;
+
+    // Dynamic pipeline stats helper (Real-time counts, NO hardcoded strings)
+    const getPositionSubtitle = (pos) => {
+        const res = positionResults[pos.id];
+        if (!res || !res.candidates || res.candidates.length === 0) {
+            return '0 candidates evaluated';
+        }
+        const total = res.candidates.length;
+        const shortlisted = res.candidates.filter(c => c.overall_score >= 80).length;
+        return `${total} in pipeline | ${shortlisted} shortlisted`;
+    };
+
+    // Keep selected candidate in sync with active position
+    React.useEffect(() => {
+        const currentRes = positionResults[activePositionId];
+        if (currentRes && currentRes.candidates && currentRes.candidates.length > 0) {
+            setSelectedCandidate(currentRes.candidates[0]);
+        } else {
+            setSelectedCandidate(null);
+        }
+    }, [activePositionId, positionResults]);
     const [resumeFiles, setResumeFiles] = useState([]);
     const [showUploadModal, setShowUploadModal] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
@@ -420,7 +437,10 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
             }
 
             if (response.data && response.data.candidates) {
-                setResults(response.data);
+                setPositionResults(prev => ({
+                    ...prev,
+                    [activePositionId]: response.data
+                }));
                 setSelectedCandidate(response.data.candidates[0] || null);
 
                 // Initialize default stage mappings
@@ -584,7 +604,6 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
             jobId: `REQ-${Math.floor(100 + Math.random() * 900)}`,
             department: newPosDept,
             title: newPosTitle.trim(),
-            subtitle: '0 candidates evaluated',
             status: 'Open',
             statusColor: '#059669',
             statusBg: 'var(--score-high-bg)',
@@ -840,8 +859,8 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                                 <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>
                                                     {pos.department || 'Engineering'}
                                                 </td>
-                                                <td style={{ padding: '12px 16px', color: 'var(--text-primary)' }}>
-                                                    {pos.subtitle}
+                                                <td style={{ padding: '12px 16px', color: 'var(--text-primary)', fontSize: '11px', fontWeight: 600 }}>
+                                                    {getPositionSubtitle(pos)}
                                                 </td>
                                                 <td style={{ padding: '12px 16px' }}>
                                                     <span style={{
@@ -1940,8 +1959,8 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                                 <span style={{ fontWeight: 600 }}>{pos.experienceRequired}</span>
                                             </div>
 
-                                            <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginTop: '4px' }}>
-                                                {pos.subtitle}
+                                            <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginTop: '4px', fontWeight: 500 }}>
+                                                {getPositionSubtitle(pos)}
                                             </div>
                                         </div>
                                     );
