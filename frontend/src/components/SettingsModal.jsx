@@ -316,37 +316,6 @@ export default function SettingsModal({
                         </div>
                     </div>
 
-                    {/* Embedding Model Selection */}
-                    <div>
-                        <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>
-                            Embedding Model Architecture
-                        </div>
-                        <select
-                            value={formSettings.model}
-                            onChange={(e) => setFormSettings(prev => ({ ...prev, model: e.target.value }))}
-                            style={{
-                                width: '100%',
-                                padding: '8px 12px',
-                                borderRadius: '6px',
-                                border: '1px solid var(--border-default)',
-                                background: 'var(--bg-subtle)',
-                                color: 'var(--text-primary)',
-                                fontSize: '12px',
-                                cursor: 'pointer'
-                            }}
-                        >
-                            <option value="sentence-transformers/all-MiniLM-L6-v2">
-                                High-Speed Semantic Matching (Standard Embeddings, &lt;0.8s) - Active
-                            </option>
-                            <option value="sentence-transformers/all-mpnet-base-v2">
-                                Deep Contextual Semantic Matching (768-dim High Precision)
-                            </option>
-                            <option value="BAAI/bge-small-en-v1.5">
-                                Enterprise MTEB Semantic Retrieval Model
-                            </option>
-                        </select>
-                    </div>
-
                     {/* Heuristic Guardrails */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>

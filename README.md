@@ -1,257 +1,244 @@
-# AI-Based Resume Matching & Candidate Ranking System (ATS)
+# AI-Powered Resume Matching & Candidate Ranking ATS
 
-An intelligent, enterprise-grade Applicant Tracking System (ATS) designed to automate resume screening, candidate ranking, and job description alignment using state-of-the-art Natural Language Processing (NLP) and dense semantic representations.
+An enterprise-grade, recruiter-facing Applicant Tracking System (ATS) designed to automate resume screening, candidate ranking, and job description alignment using dense semantic representations and multi-factor natural language processing.
 
-Built as a full-stack solution utilizing **FastAPI**, **React.js**, **Sentence Transformers (`all-MiniLM-L6-v2`)**, and **spaCy/NLTK**.
+Built as a full-stack solution featuring **FastAPI**, **React.js (Vite)**, **Sentence Transformers**, and **Modern OLED Pitch-Black UI Architecture**.
 
 ---
 
-## 📑 Table of Contents
+## Table of Contents
 - [System Architecture](#system-architecture)
-- [Key Features (Modules 1–5 Compliant)](#key-features-modules-1-5-compliant)
-- [AI/NLP Matching Algorithm & Scoring Methodology](#matching-algorithm--scoring-methodology)
+- [Core ATS Capabilities](#core-ats-capabilities)
+- [Multi-Factor AI Matching Methodology](#multi-factor-ai-matching-methodology)
 - [Technology Stack](#technology-stack)
-- [Project Structure](#project-structure)
+- [Clean Project Structure](#clean-project-structure)
 - [Quick Start Guide](#quick-start-guide)
-- [Synthetic Test Dataset (10 Resumes)](#synthetic-test-dataset)
+- [Benchmark Test Suite & Dataset](#benchmark-test-suite--dataset)
 - [Evaluation Criteria Mapping](#evaluation-criteria-mapping)
 
 ---
 
-## 🏛️ System Architecture
+## System Architecture
 
 ```mermaid
 flowchart TD
-    subgraph Recruiter Inputs
-        JD["Module 1: Job Description\n(Paste Text or Upload PDF/DOCX)"]
-        Resumes["Module 2: Batch Resumes\n(10+ PDF / DOCX / TXT Files)"]
+    subgraph Inputs ["1. Document Ingestion Layer"]
+        JD["Job Description (PDF / DOCX / TXT)"]
+        Resumes["Batch Candidate Resumes (PDF / DOCX / TXT)"]
     end
 
-    subgraph Backend NLP & Scoring Pipeline
-        JDParser["JD Parser Engine (`jd_parser.py`)\n• Title & Required Experience\n• Mandatory (2x) vs Bonus (1x) Skills\n• Education Tier"]
-        BatchExtractor["Candidate Extractor (`candidate_extractor.py`)\n• Contact & Socials\n• Career Timeline & Experience (Years)\n• Degree & Aliased Skills (K8s ↔ Kubernetes)"]
-        
-        JD --> JDParser
-        Resumes --> BatchExtractor
-
-        subgraph Multi-Factor AI Engine (`batch_scorer.py`)
-            Semantic["Semantic Similarity (40% Weight)\nDense Cosine Embedding (all-MiniLM-L6-v2)"]
-            SkillMatch["Skill Overlap (35% Weight)\nMandatory vs Bonus + Synonyms"]
-            ExpMatch["Experience Fit (15% Weight)\nCandidate yrs vs JD Requirement"]
-            EduMatch["Education Fit (10% Weight)\nDegree & Discipline Tier"]
-            
-            Synthesizer["Scoring Synthesizer\n• Overall Score (0–100)\n• Recruiter Decision Badges\n• Explainability & Probing Questions"]
-        end
-
-        JDParser --> Semantic
-        JDParser --> SkillMatch
-        JDParser --> ExpMatch
-        JDParser --> EduMatch
-
-        BatchExtractor --> Semantic
-        BatchExtractor --> SkillMatch
-        BatchExtractor --> ExpMatch
-        BatchExtractor --> EduMatch
-
-        Semantic --> Synthesizer
-        SkillMatch --> Synthesizer
-        ExpMatch --> Synthesizer
-        EduMatch --> Synthesizer
+    subgraph Extraction ["2. Information Extraction & Normalization"]
+        JDParser["JD Requirements Parser<br/>(Title, Experience, Mandatory/Bonus Skills, Education)"]
+        CandExtractor["Candidate Profile Extractor<br/>(Contact, Timeline, Experience Yrs, Degree, Skills)"]
     end
 
-    subgraph Recruiter Portal UI
-        Table["Module 4: Candidate Ranking Dashboard\n• Dynamic Leaderboard (#1, #2, #3...)\n• Multi-Attribute Sorting & Score Filtering\n• 1-Click CSV Export"]
-        Modal["Module 5: Candidate Deep-Dive Modal\n• Multi-Factor Radar / Breakdown\n• Matched vs Missing Skills (Mandatory Alerts)\n• Experience Delta (+/- yrs)\n• AI Hiring Recommendation & Interview Probes"]
-        
-        Synthesizer --> Table
-        Table --> Modal
+    subgraph Scoring ["3. Multi-Factor AI Scoring Engine"]
+        Semantic["Dense Semantic Similarity (40%)<br/>Vectorized Embedding Alignment"]
+        Skills["Weighted Skill Fit (35%)<br/>Mandatory 2x vs Bonus 1x + Synonyms"]
+        Exp["Experience Fit (15%)<br/>Documented Duration vs Requirement"]
+        Edu["Education Tier Fit (10%)<br/>Degree Level & Academic Discipline"]
+        Synthesizer["Scoring Synthesizer<br/>(0-100 Score, Stage Badging, Explainability)"]
     end
+
+    subgraph UI ["4. Recruiter Dashboard Interface"]
+        Matrix["4-Column ATS Candidate Ranking Matrix"]
+        Jobs["Requisitions & Status Management (Open / Draft / Closed)"]
+        Pool["Talent Pool & Directory (Opening-Filtered)"]
+        Analytics["Hiring Pipeline & Conversion Funnel Analytics"]
+        Detail["Full Resume Text & Deep-Dive Match Inspector"]
+    end
+
+    JD --> JDParser
+    Resumes --> CandExtractor
+
+    JDParser --> Semantic
+    JDParser --> Skills
+    JDParser --> Exp
+    JDParser --> Edu
+
+    CandExtractor --> Semantic
+    CandExtractor --> Skills
+    CandExtractor --> Exp
+    CandExtractor --> Edu
+
+    Semantic --> Synthesizer
+    Skills --> Synthesizer
+    Exp --> Synthesizer
+    Edu --> Synthesizer
+
+    Synthesizer --> Matrix
+    Matrix --> Jobs
+    Matrix --> Pool
+    Matrix --> Analytics
+    Matrix --> Detail
 ```
 
 ---
 
-## 🌟 Key Features (Modules 1–5 Compliant)
+## Core ATS Capabilities
 
-### Module 1: Job Description Input & Parsing
-- **Dual Input Modes**: Paste raw text or upload `.pdf`, `.docx`, `.txt` job descriptions.
-- **Auto-Extraction Engine**: Automatically segments job title, minimum required experience, mandatory ("Must Have") skills, and bonus ("Good to Have") qualifications.
-- **Real-Time Preview**: Displays extracted requirements instantly before triggering matching.
+### 1. Job Requisition & Specification Ingestion
+- **Dual Ingestion**: Parse text directly or upload multi-format `.pdf`, `.docx`, or `.txt` specifications.
+- **Requirement Segmentation**: Automatically segments job title, experience thresholds, mandatory core requirements, and bonus competencies.
+- **Requisition Lifecycle Management**: Easily transition job statuses across **Open**, **Draft**, and **Closed** states with real-time pipeline status tracking.
 
-### Module 2: Batch Resume Upload
-- **High-Capacity Dropzone**: Supports drag-and-drop or batch selection of **10+ resumes** simultaneously.
-- **Multi-Format Support**: Accurately parses `.pdf`, `.docx`, and `.txt` files.
-- **Information Extraction**: Extracts candidate name, email, phone, career timeline, total years of experience, highest degree, and technical competencies with synonym normalization (e.g. `K8s` $\rightarrow$ `Kubernetes`, `React.js` $\rightarrow$ `React`).
+### 2. High-Capacity Batch Resume Processing
+- **Universal Multi-Format Support**: High-performance extraction engine for `.pdf`, `.docx`, and `.txt` candidate files.
+- **Original Document Preservation**: Stores and serves CVs in their original uploaded binary format with 1-click downloads.
+- **Information Normalization**: Extracts candidate identity, contact channels, full-length career timelines, degree tiers, and normalized technical skill aliases (e.g. `K8s` -> `Kubernetes`, `React.js` -> `React`).
 
-### Module 3: AI Resume Matching Engine
-- **Hybrid NLP Approach**: Combines dense semantic similarity (`sentence-transformers/all-MiniLM-L6-v2`) with weighted keyword extraction and career timeline delta calculations.
-- **Synonym & Alias Normalization**: Maps abbreviations and alternate spellings to standard canonical skills.
-- **Zero Hallucination**: Transparent mathematical formulas with deterministic explanations.
+### 3. Explainable Multi-Factor Ranking
+- **Hybrid AI Scoring**: Balances deep dense context matching with strict mandatory skill requirements, preventing keyword stuffing while rewarding practical experience.
+- **Dynamic Weight Configuration**: Tailor scoring weights (Semantic, Skills, Experience, Education) in real time to match specific technical role demands.
+- **Transparent Justification**: Deterministic breakdown cards with matched skills, missing mandatory requirements, and experience deltas.
 
-### Module 4: Candidate Ranking Dashboard
-- **Ranked Leaderboard**: Displays candidates sorted by match percentage (`Candidate`, `Experience`, `Match %`, `Matched Skills`, `Badge`).
-- **Interactive Controls**: Live search by candidate name or skill, status filter tabs (`Top Contender`, `Potential Fit`, `Under-qualified`), and minimum match threshold slider.
-- **Export Shortlist**: 1-click **Export to CSV** for hiring teams and interview panels.
-
-### Module 5: Candidate-Level Drilldown Analysis
-- Recruiter clicks any candidate row to open a comprehensive analysis modal:
-  1. **Candidate Contact & Profile**: Direct email, phone, LinkedIn, degree, and career summary.
-  2. **Multi-Factor Score Cards**: Visual breakdown of Semantic (40%), Skills (35%), Experience (15%), and Education (10%).
-  3. **Experience Comparison**: Explicit delta comparing candidate's documented career length against JD requirements.
-  4. **Side-by-Side Skills Matrix**: Clear green checkmark tags for matched mandatory/bonus skills vs red warning tags for missing mandatory skills.
-  5. **Explainable AI Reasoning**: Plain-English bullet points explaining why the score was assigned.
-  6. **Technical Interview Probing Questions**: Tailored questions automatically generated based on the candidate's exact skill gaps.
+### 4. Recruiter Management & Decision Pipeline
+- **Candidate Advancement**: Directly manage applicant stages (`Screen` -> `Technical Interview` -> `Final Offer` / `Reject`).
+- **Targeted Interview Preparation**: Automatically prepares tailored interview probing questions based on candidate skill gaps.
+- **Opening-Specific Analytics**: Dynamic funnel metrics, average match scores, and skill distributions calibrated per job requisition.
 
 ---
 
-## 🧠 Matching Algorithm & Scoring Methodology
+## Multi-Factor AI Matching Methodology
 
-The overall candidate score $S_{\text{total}} \in [0, 100]$ is computed using a weighted multi-factor composite formula:
+The composite ATS match score $S_{	ext{total}} \in [0, 100]$ is computed using a calibrated multi-tier scoring model:
 
-$$S_{\text{total}} = (0.40 \times S_{\text{semantic}}) + (0.35 \times S_{\text{skills}}) + (0.15 \times S_{\text{experience}}) + (0.10 \times S_{\text{education}})$$
+$$S_{	ext{total}} = (0.40 	imes S_{	ext{semantic}}) + (0.35 	imes S_{	ext{skills}}) + (0.15 	imes S_{	ext{experience}}) + (0.10 	imes S_{	ext{education}})$$
 
-### 1. Semantic Similarity ($S_{\text{semantic}}$ - 40% Weight)
-- Evaluates the contextual meaning and depth of experience beyond simple keywords.
-- Dense 384-dimensional sentence embeddings are computed using `sentence-transformers/all-MiniLM-L6-v2`:
-  $$\text{sim}_{\cos}(u, v) = \frac{u \cdot v}{\|u\|_2 \|v\|_2}$$
-- Normalized across the typical embedding range $[0.25, 0.85] \rightarrow [20.0, 98.0]$ to reflect recruiter relevance.
+### 1. Semantic AI Context Fit ($S_{	ext{semantic}}$ - 40% Weight)
+- Evaluates holistic contextual alignment, domain relevancy, and engineering depth beyond keyword matching.
+- Vectorized sentence embeddings capture semantic synonymy and role responsibilities using cosine similarity:
+  $$	ext{sim}_{\cos}(u, v) = rac{u \cdot v}{\|u\|_2 \|v\|_2}$$
+- Normalized across typical embedding bounds $[0.25, 0.85] ightarrow [20.0, 98.0]$ for recruiter interpretability.
 
-### 2. Weighted Skill Overlap ($S_{\text{skills}}$ - 35% Weight)
-- Distinguishes between critical requirements and peripheral plusses:
-  $$S_{\text{skills}} = \frac{2 \times |M_{\text{matched}}| + 1 \times |B_{\text{matched}}|}{2 \times |M_{\text{total}}| + 1 \times |B_{\text{total}}|} \times 100$$
-  where $M$ denotes Mandatory Skills and $B$ denotes Bonus Skills.
+### 2. Weighted Skill Coverage ($S_{	ext{skills}}$ - 35% Weight)
+- Differentiates non-negotiable core requirements from supplementary bonuses:
+  $$S_{	ext{skills}} = rac{2 	imes |M_{	ext{matched}}| + 1 	imes |B_{	ext{matched}}|}{2 	imes |M_{	ext{total}}| + 1 	imes |B_{	ext{total}}|} 	imes 100$$
+  where $M$ denotes Mandatory Core Skills and $B$ denotes Preferred Bonus Skills.
 
-### 3. Experience Fit ($S_{\text{experience}}$ - 15% Weight)
-- Computes total career duration from documented employment dates and explicit resume declarations:
-  - If Candidate Experience $\ge$ Required Experience: **100%** (with surplus highlighted)
-  - If Candidate Experience $<$ Required Experience:
-    $$S_{\text{experience}} = \max\left(25.0, \frac{\text{Years}_{\text{candidate}}}{\text{Years}_{\text{required}}} \times 100\right)$$
+### 3. Career Experience Fit ($S_{	ext{experience}}$ - 15% Weight)
+- Extracts multi-interval work tenures and compares documented industry experience against requisition minimums:
+  - If $	ext{Experience}_{	ext{candidate}} \ge 	ext{Experience}_{	ext{required}}$: **100%** (surplus tenure identified)
+  - If $	ext{Experience}_{	ext{candidate}} < 	ext{Experience}_{	ext{required}}$:
+    $$S_{	ext{experience}} = \max\left(25.0, rac{	ext{Years}_{	ext{candidate}}}{	ext{Years}_{	ext{required}}} 	imes 100ight)$$
 
-### 4. Education & Domain Fit ($S_{\text{education}}$ - 10% Weight)
-- Tiered evaluation of candidate degree level:
-  - Meets or exceeds required degree (e.g. Master's / Bachelor's): **100%**
-  - One tier below required degree: **75%**
+### 4. Education & Academic Discipline ($S_{	ext{education}}$ - 10% Weight)
+- Evaluates candidate highest degree and relevant major alignment:
+  - Meets or exceeds required degree (Master's / Bachelor's in CS/STEM): **100%**
+  - Adjacent technical tier: **75%**
   - Unspecified / Non-technical: **50%**
 
-### Recruiter Decision Badges
-- **`Top Contender`** ($\ge 85\%$): High alignment across mandatory skills, contextual relevance, and experience.
-- **`Potential Fit`** ($65\% - 84\%$): Solid foundation with minor skill or experience gaps worth evaluating in an interview.
-- **`Under-qualified`** ($< 65\%$): Significant missing mandatory skills or below minimum experience threshold.
+### Decision Status Badges
+- **Ready for Offer** ($\ge 80\%$): Exceptional candidate alignment across mandatory requirements, semantic context, and experience duration.
+- **Interview Qualified** ($60\% - 79\%$): Solid foundational candidate with targeted skill gaps suitable for technical screening.
+- **Under Review / Disqualified** ($< 60\%$): Notable missing requirements or experience below threshold.
 
 ---
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 | Layer | Technologies |
 | :--- | :--- |
-| **Frontend** | React 19, Vite 8, Lucide React, Axios, Modern Dark Theme CSS |
+| **Frontend** | React 19, Vite 8, Lucide Icons, Axios, Modern Dark Design System |
 | **Backend** | Python 3.9+, FastAPI, Uvicorn, Pydantic |
-| **AI / NLP** | Sentence Transformers (`all-MiniLM-L6-v2`), PyTorch, scikit-learn, NLTK, spaCy taxonomy |
-| **Document Parsing** | PyPDF2 (PDF), python-docx (DOCX), fpdf2 (PDF Generation) |
-| **Data Export** | Native RFC 4180 CSV Exporter |
+| **AI / NLP** | Sentence Transformers, PyTorch, Scikit-learn, NLTK, spaCy taxonomy |
+| **File Processing** | PyPDF2 (PDF parsing), python-docx (DOCX parsing), fpdf2 (PDF generation) |
+| **Data Export** | RFC 4180 Native CSV Exporter |
 
 ---
 
-## 📁 Project Structure
+## Clean Project Structure
 
 ```
 Resume Matcher Project/
 ├── backend/
-│   ├── main.py                  # FastAPI application & API endpoints
-│   ├── candidate_extractor.py   # Name, contact, experience timeline, degree, and skill extraction
+│   ├── main.py                  # FastAPI server application & API routing
+│   ├── candidate_extractor.py   # Information extraction (contact, experience, degree, skills)
 │   ├── jd_parser.py             # Job Description requirements & skill categorization
 │   ├── batch_scorer.py          # Multi-factor hybrid AI scoring & ranking engine
-│   ├── file_parser.py           # Robust PDF, DOCX, TXT byte parser
-│   ├── nlp_engine.py            # TF-IDF, tokenization, and ATS utilities
-│   ├── semantic_matcher.py      # SentenceTransformer dense embedding engine
-│   ├── requirements.txt         # Python dependencies
-│   └── create_test_resumes.py   # Benchmark test data & PDF generator
+│   ├── file_parser.py           # Robust multi-format byte parser (PDF, DOCX, TXT)
+│   ├── nlp_engine.py            # Tokenization, keyword extraction, and ATS scoring utilities
+│   ├── semantic_matcher.py      # Dense semantic embedding and cosine similarity engine
+│   ├── requirements.txt         # Python backend dependencies
+│   └── test_resumes/            # Synthetic benchmark dataset generator
 ├── frontend/
 │   ├── src/
-│   │   ├── pages/
-│   │   │   ├── BatchAtsPage.jsx # Recruiter Candidate Ranking Portal (Modules 1–5)
-│   │   │   ├── HomePage.jsx     # Single-candidate dashboard view
-│   │   │   └── ...              # Additional AI analysis pages
 │   │   ├── components/
-│   │   │   └── Navbar.jsx       # Recruiter ATS sidebar navigation
-│   │   ├── App.jsx              # Main routing shell
-│   │   └── index.css            # Dark enterprise design system
+│   │   │   ├── Navbar.jsx       # Recruiter ATS sidebar navigation
+│   │   │   └── SettingsModal.jsx # Dynamic ATS scoring weights & recruiter guardrails
+│   │   ├── pages/
+│   │   │   └── BatchAtsPage.jsx # Full-featured 4-column ATS ranking & analytics matrix
+│   │   ├── App.jsx              # Application root shell & theme provider
+│   │   ├── index.css            # OLED dark & light design system tokens
+│   │   └── main.jsx             # React DOM entry point
 │   └── package.json             # React dependencies & Vite build configuration
-├── test_resumes/                # 10 diverse test resumes (PDF + TXT) + Sample JD
-│   ├── 01_Aarav_Sharma_Senior_FullStack.pdf
-│   ├── 02_Sneha_Reddy_AI_Developer.pdf
-│   ├── 03_Rohan_Mehta_Backend_Engineer.pdf
-│   ├── 04_Priya_Patel_Frontend_Lead.pdf
-│   ├── 05_Vikram_Singhania_Data_Scientist.pdf
-│   ├── 06_Ananya_Deshmukh_DevOps_Cloud.pdf
-│   ├── 07_Kavita_Nair_Junior_FullStack.pdf
-│   ├── 08_Arjun_Kapoor_Python_Fresher.pdf
-│   ├── 09_Sunil_Rao_Java_Developer.pdf
-│   ├── 10_Neha_Gupta_QA_Automation.pdf
-│   └── SAMPLE_JOB_DESCRIPTION.txt
-└── README.md
+├── test_resumes/                # Benchmark multi-format test resumes (PDF, DOCX, TXT)
+│   ├── sample_resumes/          # Technical candidate profiles across engineering disciplines
+│   └── SAMPLE_JOB_DESCRIPTION.txt # Reference job description specification
+├── run_fullstack.bat            # 1-click launch script for Windows Command Prompt
+├── run_fullstack.ps1            # 1-click launch script for PowerShell
+└── README.md                    # Project documentation & technical specifications
 ```
 
 ---
 
-## 🚀 Quick Start Guide
+## Quick Start Guide
 
 ### Prerequisites
 - Python 3.9+ with `pip`
 - Node.js 18+ with `npm`
 
-### 1. Start the Backend (FastAPI)
+### 1-Click Launch (Windows)
+Run either launcher script from the project root:
+```powershell
+# In PowerShell:
+.\run_fullstack.ps1
+
+# Or in Windows CMD:
+run_fullstack.bat
+```
+
+### Manual Service Startup
+
+#### 1. Start FastAPI Backend
 ```bash
 cd backend
-
-# Install Python dependencies
 pip install -r requirements.txt
-
-# Start FastAPI server on port 8000
 python -m uvicorn main:app --reload --port 8000
 ```
-- API Docs (Swagger UI): **http://localhost:8000/docs**
+- API Documentation (Swagger UI): **http://localhost:8000/docs**
 
-### 2. Start the Frontend (React + Vite)
+#### 2. Start React Frontend
 ```bash
 cd frontend
-
-# Install npm packages
 npm install
-
-# Start Vite dev server on port 5173
 npm run dev
 ```
-- Application Web UI: **http://localhost:5173**
+- Recruiter ATS Portal: **http://localhost:5173**
 
 ---
 
-## 🧪 Synthetic Test Dataset
+## Benchmark Test Suite & Dataset
 
-The repository includes a ready-to-test benchmark suite located in `test_resumes/` featuring **10 realistic candidate profiles** in both `.pdf` and `.txt` format:
+The repository includes a comprehensive, multi-format evaluation suite in `test_resumes/` designed to benchmark the ATS matching engine against diverse hiring criteria:
 
-1. **Aarav Sharma**: Senior Full Stack & AI (5+ yrs, Python, FastAPI, React, PyTorch, Docker, PostgreSQL) $\rightarrow$ *Top Contender*
-2. **Sneha Reddy**: Full Stack AI Developer (4 yrs, Python, React, FastAPI, ML, NLP, AWS, SQL) $\rightarrow$ *Potential Fit*
-3. **Rohan Mehta**: Backend Engineer (3.5 yrs, Python, Flask, SQL, Docker, Redis) $\rightarrow$ *Mid Fit*
-4. **Priya Patel**: Frontend Engineer (4 yrs, React, TypeScript, Redux, UI/UX) $\rightarrow$ *Specialized Fit*
-5. **Vikram Singhania**: Data Scientist (3 yrs, Python, PyTorch, Scikit-learn, SQL, Power BI) $\rightarrow$ *Data Specialist*
-6. **Ananya Deshmukh**: DevOps & Cloud Engineer (4 yrs, AWS, Docker, K8s, CI/CD) $\rightarrow$ *Infra Specialist*
-7. **Kavita Nair**: Junior Full Stack (1.5 yrs, React, Python, FastAPI, SQLite) $\rightarrow$ *Junior Contender*
-8. **Arjun Kapoor**: Fresher / Entry Level (CS Grad, Python, SQL, Git) $\rightarrow$ *Entry Level*
-9. **Sunil Rao**: Java Enterprise Backend (5 yrs, Java, Spring Boot, SQL) $\rightarrow$ *Domain Switcher*
-10. **Neha Gupta**: QA Automation Engineer (3 yrs, Selenium, Python, Postman) $\rightarrow$ *QA Engineer*
+- **Technical Domains Covered**: Full Stack & AI Engineering, Backend Development, Infrastructure / Cloud DevOps, Data Science, and QA Automation.
+- **Experience Spectrum**: Calibrated across multiple career phases, spanning fresh graduates (0 years) through senior engineering leads (5+ years).
+- **Document Format Testing**: Multi-format test corpus provided in native `.pdf`, `.docx`, and `.txt` files to validate parser resilience.
+- **Scoring Distribution**: Formulated to produce a realistic distribution of candidates across Offer Ready ($\ge 80\%$), Interview Qualified ($60\% - 79\%$), and Disqualified ($< 60\%$) tiers.
 
-> 💡 **One-Click Demo in UI**: Click the **"Load 10 Demo Resumes + JD"** button in the top navigation bar to populate the entire test suite and run live candidate ranking in under 2 seconds!
+> **1-Click Live Evaluation**: Click **"Load Demo Dataset"** in the top action bar to instantly populate candidate profiles and execute batch AI evaluation in under 2 seconds.
 
 ---
 
-## 📊 Evaluation Criteria Mapping
+## Evaluation Criteria Mapping
 
-| Evaluation Parameter | Weight | System Implementation |
+| Evaluation Parameter | Weight | Implementation Details |
 | :--- | :---: | :--- |
-| **Functional Application** | **25%** | Complete end-to-end web application with FastAPI backend, React 19 frontend, batch upload, live ranking, filtering, and modal drilldown. |
-| **Resume Parsing Accuracy** | **15%** | Dual-format parsing (PDF & DOCX) extracting candidate name, contact, multi-interval career timelines, degree tiers, and aliased skills. |
-| **JD-to-Resume Matching Logic** | **25%** | Hybrid multi-factor algorithm combining dense SentenceTransformers embeddings (40%), weighted skill overlap (35%), experience delta (15%), and education fit (10%). |
-| **Matching Score & Explanation** | **15%** | Transparent 0–100 percentage score with component breakdown cards, matched vs missing skills, experience status, and recruiter interview probes. |
-| **UI/UX and Usability** | **10%** | Modern pitch-black enterprise UI, responsive leaderboard, live search/filtering, CSV export, and one-click demo dataset. |
-| **Code Quality & Documentation** | **10%** | Modular, PEP-8 compliant Python architecture, typed models, clean React components, and detailed documentation with Mermaid diagrams. |
+| **Functional Application** | **25%** | Complete end-to-end recruiter platform: multi-job requisitions, batch upload, live matrix ranking, status switching, and candidate drilldown. |
+| **Resume Parsing Accuracy** | **15%** | Multi-format parsing (PDF, DOCX, TXT) extracting contacts, multi-period employment durations, degree levels, and canonical skill aliases. |
+| **JD-to-Resume Matching Logic** | **25%** | Multi-factor hybrid algorithm combining dense semantic similarity (40%), weighted skill coverage (35%), experience delta (15%), and education tier (10%). |
+| **Matching Score & Explanation** | **15%** | 0-100 composite percentage score with transparent factor breakdown cards, matched vs missing skills, and interview probing suggestions. |
+| **UI/UX & Recruiter Usability** | **10%** | Clean OLED dark mode design system, responsive 4-column matrix, interactive requisition status, and 1-click original format CV downloads. |
+| **Code Quality & Architecture** | **10%** | Modular, PEP-8 compliant Python backend, streamlined React architecture, clean git history, and complete documentation. |
 | **Total** | **100%** | |
