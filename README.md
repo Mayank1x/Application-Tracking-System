@@ -109,7 +109,8 @@ $$S_{	ext{total}} = (0.40 	imes S_{	ext{semantic}}) + (0.35 	imes S_{	ext{skills
 - Evaluates holistic contextual alignment, domain relevancy, and engineering depth beyond keyword matching.
 - Vectorized sentence embeddings capture semantic synonymy and role responsibilities using cosine similarity:
   $$	ext{sim}_{\cos}(u, v) = rac{u \cdot v}{\|u\|_2 \|v\|_2}$$
-- Normalized across typical embedding bounds $[0.25, 0.85] ightarrow [20.0, 98.0]$ for recruiter interpretability.
+- Normalized across typical embedding bounds $[0.25, 0.85] 
+ightarrow [20.0, 98.0]$ for recruiter interpretability.
 
 ### 2. Weighted Skill Coverage ($S_{	ext{skills}}$ - 35% Weight)
 - Differentiates non-negotiable core requirements from supplementary bonuses:
@@ -120,7 +121,8 @@ $$S_{	ext{total}} = (0.40 	imes S_{	ext{semantic}}) + (0.35 	imes S_{	ext{skills
 - Extracts multi-interval work tenures and compares documented industry experience against requisition minimums:
   - If $	ext{Experience}_{	ext{candidate}} \ge 	ext{Experience}_{	ext{required}}$: **100%** (surplus tenure identified)
   - If $	ext{Experience}_{	ext{candidate}} < 	ext{Experience}_{	ext{required}}$:
-    $$S_{	ext{experience}} = \max\left(25.0, rac{	ext{Years}_{	ext{candidate}}}{	ext{Years}_{	ext{required}}} 	imes 100ight)$$
+    $$S_{	ext{experience}} = \max\left(25.0, rac{	ext{Years}_{	ext{candidate}}}{	ext{Years}_{	ext{required}}} 	imes 100
+ight)$$
 
 ### 4. Education & Academic Discipline ($S_{	ext{education}}$ - 10% Weight)
 - Evaluates candidate highest degree and relevant major alignment:
@@ -231,14 +233,3 @@ The repository includes a comprehensive, multi-format evaluation suite in `test_
 
 ---
 
-## Evaluation Criteria Mapping
-
-| Evaluation Parameter | Weight | Implementation Details |
-| :--- | :---: | :--- |
-| **Functional Application** | **25%** | Complete end-to-end recruiter platform: multi-job requisitions, batch upload, live matrix ranking, status switching, and candidate drilldown. |
-| **Resume Parsing Accuracy** | **15%** | Multi-format parsing (PDF, DOCX, TXT) extracting contacts, multi-period employment durations, degree levels, and canonical skill aliases. |
-| **JD-to-Resume Matching Logic** | **25%** | Multi-factor hybrid algorithm combining dense semantic similarity (40%), weighted skill coverage (35%), experience delta (15%), and education tier (10%). |
-| **Matching Score & Explanation** | **15%** | 0-100 composite percentage score with transparent factor breakdown cards, matched vs missing skills, and interview probing suggestions. |
-| **UI/UX & Recruiter Usability** | **10%** | Clean OLED dark mode design system, responsive 4-column matrix, interactive requisition status, and 1-click original format CV downloads. |
-| **Code Quality & Architecture** | **10%** | Modular, PEP-8 compliant Python backend, streamlined React architecture, clean git history, and complete documentation. |
-| **Total** | **100%** | |
