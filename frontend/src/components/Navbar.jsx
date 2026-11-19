@@ -3,7 +3,7 @@ import { Home, Briefcase, Users, BarChart2, Settings, Moon, Sun } from 'lucide-r
 
 export default function Sidebar({ theme, toggleTheme, activeNav, setActiveNav, onOpenSettings }) {
     return (
-        <aside style={{
+        <aside className="responsive-navbar" style={{
             width: '56px',
             background: 'var(--bg-surface)',
             borderRight: '1px solid var(--border-default)',
@@ -15,8 +15,9 @@ export default function Sidebar({ theme, toggleTheme, activeNav, setActiveNav, o
             zIndex: 50,
             transition: 'background 0.2s ease, border-color 0.2s ease'
         }}>
-            {/* Top Brand Logo - Crisp Geometric Origami Bird Mark from Reference Mockup (NO STAR LOGO) */}
+            {/* Top Brand Logo */}
             <button
+                className="nav-brand-logo"
                 onClick={() => setActiveNav('positions')}
                 title="CodeLens ATS - Candidate Ranking System"
                 style={{
@@ -184,7 +185,7 @@ export default function Sidebar({ theme, toggleTheme, activeNav, setActiveNav, o
             </nav>
 
             {/* Bottom Actions: Theme Toggle + Settings (NO profile avatar / NO HM!) */}
-            <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
+            <div className="nav-bottom-actions" style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
                 {/* Professional Dark / Light Mode Toggle */}
                 <button
                     onClick={toggleTheme}

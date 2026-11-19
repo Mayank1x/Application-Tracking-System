@@ -47,6 +47,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <div
+        className="app-shell"
         data-theme={theme}
         style={{
           display: 'flex',
@@ -91,7 +92,7 @@ export default function App() {
         />
 
         {/* Main Content Area */}
-        <main style={{ flex: 1, minWidth: 0, height: '100vh', overflow: 'hidden' }}>
+        <main className="main-content-area" style={{ flex: 1, minWidth: 0, height: '100vh', overflow: 'hidden' }}>
           <Routes>
             <Route path="*" element={
               <BatchAtsPage

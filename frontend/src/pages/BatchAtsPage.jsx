@@ -6,7 +6,7 @@ import {
     Filter, Mail, Calendar, MessageSquare, Briefcase,
     SlidersHorizontal, AlertCircle, ArrowUpDown, CheckCircle2,
     Users, BarChart2, TrendingUp, Award, Clock, ChevronRight,
-    ExternalLink, Database, Layers, ArrowRight, ShieldCheck,
+    ExternalLink, Database, Layers, ArrowRight, ArrowLeft, ShieldCheck,
     CheckCircle, AlertTriangle, User, MapPin, Phone, GraduationCap,
     ChevronDown, ChevronUp, Copy, DollarSign, Globe, Wrench, Sparkles,
     Zap, Brain, ListChecks, Target, Network, MessageCircle
@@ -142,6 +142,19 @@ export default function BatchAtsPage({
     const [positionCategoryFilter, setPositionCategoryFilter] = useState('All');
     const [showNewPositionModal, setShowNewPositionModal] = useState(false);
     const [showJdDetailsModal, setShowJdDetailsModal] = useState(false);
+
+    // ── Responsive Layout Listener (Mobile / Tablet / Desktop) ──
+    const [windowWidth, setWindowWidth] = useState(() => typeof window !== 'undefined' ? window.innerWidth : 1200);
+    const [mobileTab, setMobileTab] = useState('ranking'); // 'positions' | 'ranking'
+
+    React.useEffect(() => {
+        const handleResize = () => setWindowWidth(window.innerWidth);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    const isMobile = windowWidth <= 768;
+    const isTablet = windowWidth > 768 && windowWidth <= 1024;
 
     // ── Candidates & Ranking State (Dynamic real-time storage per position) ──
     const [candidateSearch, setCandidateSearch] = useState('');
@@ -799,8 +812,8 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                 VIEW: REQUISITIONS & OPEN JOBS (Matches Reference Mockup Image 3 & 4)
             ══════════════════════════════════════════════════════════════ */}
             {activeNav === 'jobs' && (
-                <div style={{ flex: 1, padding: '24px 32px', overflowY: 'auto', background: 'var(--bg-app)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <div style={{ flex: 1, padding: isMobile ? '16px 12px' : '24px 32px', overflowY: 'auto', background: 'var(--bg-app)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
                         <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <h1 style={{ fontSize: '20px', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
@@ -823,7 +836,7 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                             </p>
                         </div>
 
-                        <div style={{ display: 'flex', gap: '8px' }}>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                             <button
                                 onClick={() => setShowNewPositionModal(true)}
                                 style={{
@@ -844,7 +857,10 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                 <Plus size={15} /> Add Job
                             </button>
                             <button
-                                onClick={() => setActiveNav('positions')}
+                                onClick={() => {
+                                    setActiveNav('positions');
+                                    if (isMobile) setMobileTab('ranking');
+                                }}
                                 style={{
                                     background: 'var(--card-bg)',
                                     color: 'var(--text-primary)',
@@ -873,9 +889,10 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                         background: 'var(--card-bg)',
                         border: '1px solid var(--border-default)',
                         borderRadius: '10px',
-                        boxShadow: 'var(--card-shadow)'
+                        boxShadow: 'var(--card-shadow)',
+                        flexWrap: 'wrap'
                     }}>
-                        <div style={{ display: 'flex', gap: '6px' }}>
+                        <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', maxWidth: '100%' }}>
                             {['all', 'Open', 'Draft', 'Closed'].map(tab => (
                                 <button
                                     key={tab}
@@ -889,7 +906,8 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                         cursor: 'pointer',
                                         background: jobsFilterTab === tab ? '#059669' : 'transparent',
                                         color: jobsFilterTab === tab ? '#ffffff' : 'var(--text-secondary)',
-                                        boxShadow: jobsFilterTab === tab ? '0 1px 4px rgba(5, 150, 105, 0.3)' : 'none'
+                                        boxShadow: jobsFilterTab === tab ? '0 1px 4px rgba(5, 150, 105, 0.3)' : 'none',
+                                        whiteSpace: 'nowrap'
                                     }}
                                 >
                                     {tab === 'all' ? `All Jobs (${positions.length})` : `${tab} Jobs (${positions.filter(p => p.status === tab).length})`}
@@ -897,7 +915,7 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                             ))}
                         </div>
 
-                        <div style={{ position: 'relative', width: '280px' }}>
+                        <div style={{ position: 'relative', width: isMobile ? '100%' : '280px' }}>
                             <Search size={14} style={{ position: 'absolute', left: '10px', top: '9px', color: 'var(--text-tertiary)' }} />
                             <input
                                 type="text"
@@ -919,8 +937,8 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                     </div>
 
                     {/* Jobs Table in Elevated Card */}
-                    <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-default)', borderRadius: '10px', overflow: 'hidden', boxShadow: 'var(--card-shadow)' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
+                    <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-default)', borderRadius: '10px', overflow: 'hidden', overflowX: 'auto', boxShadow: 'var(--card-shadow)' }}>
+                        <table style={{ width: '100%', minWidth: '600px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
                             <thead>
                                 <tr style={{ background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}>
                                     <th style={{ padding: '12px 16px' }}>Job ID</th>
@@ -983,6 +1001,7 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                                         onClick={() => {
                                                             setActivePositionId(pos.id);
                                                             setActiveNav('positions');
+                                                            if (isMobile) setMobileTab('ranking');
                                                         }}
                                                         style={{
                                                             background: '#059669',
@@ -1021,8 +1040,8 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                 });
 
                 return (
-                    <div style={{ flex: 1, padding: '24px 32px', overflowY: 'auto', background: 'var(--bg-app)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <div style={{ flex: 1, padding: isMobile ? '16px 12px' : '24px 32px', overflowY: 'auto', background: 'var(--bg-app)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
                             <div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <h1 style={{ fontSize: '20px', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
@@ -1067,7 +1086,10 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                     </button>
                                 )}
                                 <button
-                                    onClick={() => setActiveNav('positions')}
+                                    onClick={() => {
+                                        setActiveNav('positions');
+                                        if (isMobile) setMobileTab('ranking');
+                                    }}
                                     style={{
                                         background: '#059669',
                                         color: '#ffffff',
@@ -1146,7 +1168,7 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                 </div>
                             </div>
 
-                            <div style={{ position: 'relative', width: '260px' }}>
+                            <div style={{ position: 'relative', width: isMobile ? '100%' : '260px' }}>
                                 <Search size={14} style={{ position: 'absolute', left: '10px', top: '9px', color: 'var(--text-tertiary)' }} />
                                 <input
                                     type="text"
@@ -1195,8 +1217,8 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                 </button>
                             </div>
                         ) : (
-                            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-default)', borderRadius: '10px', overflow: 'hidden', boxShadow: 'var(--card-shadow)' }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
+                            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-default)', borderRadius: '10px', overflow: 'hidden', overflowX: 'auto', boxShadow: 'var(--card-shadow)' }}>
+                                <table style={{ width: '100%', minWidth: '650px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
                                     <thead>
                                         <tr style={{ background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}>
                                             <th style={{ padding: '12px 16px' }}>Rank</th>
@@ -1328,7 +1350,7 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                     : ['Python', 'React', 'FastAPI', 'PostgreSQL', 'Docker', 'Machine Learning', 'AWS', 'TypeScript', 'SQL', 'REST API'];
 
                 return (
-                    <div style={{ flex: 1, padding: '24px 32px', overflowY: 'auto', background: 'var(--bg-app)' }}>
+                    <div style={{ flex: 1, padding: isMobile ? '16px 12px' : '24px 32px', overflowY: 'auto', background: 'var(--bg-app)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
                             <div>
                                 <h1 style={{ fontSize: '20px', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
@@ -1364,7 +1386,10 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                     </select>
                                 </div>
                                 <button
-                                    onClick={() => setActiveNav('positions')}
+                                    onClick={() => {
+                                        setActiveNav('positions');
+                                        if (isMobile) setMobileTab('ranking');
+                                    }}
                                     style={{
                                         background: '#059669',
                                         color: '#ffffff',
@@ -1383,7 +1408,7 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                         </div>
 
                         {/* Metric Cards Row - Elevated floating cards */}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px' }}>
                             <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-default)', borderRadius: '10px', padding: '18px', boxShadow: 'var(--card-shadow)' }}>
                                 <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>Total Evaluated Resumes</div>
                                 <div style={{ fontSize: '30px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
@@ -1422,7 +1447,7 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                             <h3 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 16px 0', color: 'var(--text-primary)' }}>
                                 Recruitment Stage Conversion Funnel {selectedOpening ? `(${selectedOpening.jobId})` : ''}
                             </h3>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '16px' }}>
                                 <div style={{ background: 'var(--bg-subtle)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-default)' }}>
                                     <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Stage 1: Screened</div>
                                     <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
@@ -1490,13 +1515,16 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
             {activeNav === 'positions' && (
                 <>
                     {/* ── COLUMN 2: Open Positions List Panel (ENHANCED SIDE PANEL) ── */}
+                    {(!isMobile || mobileTab === 'positions') && (
                     <div style={{
-                        width: '280px',
-                        borderRight: '1px solid var(--border-default)',
+                        width: isMobile ? '100%' : isTablet ? '230px' : '280px',
+                        borderRight: isMobile ? 'none' : '1px solid var(--border-default)',
                         display: 'flex',
                         flexDirection: 'column',
                         background: 'var(--bg-surface)',
-                        flexShrink: 0
+                        flexShrink: 0,
+                        height: '100%',
+                        overflowY: 'auto'
                     }}>
                         {/* Header */}
                         <div style={{
@@ -1606,7 +1634,10 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                     return (
                                         <div
                                             key={pos.id}
-                                            onClick={() => setActivePositionId(pos.id)}
+                                            onClick={() => {
+                                                setActivePositionId(pos.id);
+                                                if (isMobile) setMobileTab('ranking');
+                                            }}
                                             style={{
                                                 padding: '12px 14px',
                                                 borderRadius: '8px',
@@ -1660,16 +1691,55 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                 })}
                         </div>
                     </div>
+                    )}
 
                     {/* ── COLUMN 3: Position Details & Candidate Ranking List (ENHANCED MIDDLE PANEL) ── */}
+                    {(!isMobile || mobileTab === 'ranking') && (
                     <div style={{
-                        flex: 1,
+                        flex: isMobile ? undefined : 1,
+                        width: isMobile ? '100%' : undefined,
                         display: 'flex',
                         flexDirection: 'column',
-                        borderRight: '1px solid var(--border-default)',
+                        borderRight: isMobile ? 'none' : '1px solid var(--border-default)',
                         background: 'var(--bg-app)',
                         overflow: 'hidden'
                     }}>
+                        {/* Mobile Top Navigation Bar */}
+                        {isMobile && (
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '8px 14px',
+                                background: 'var(--bg-surface)',
+                                borderBottom: '1px solid var(--border-default)',
+                                gap: '8px',
+                                flexShrink: 0
+                            }}>
+                                <button
+                                    onClick={() => setMobileTab('positions')}
+                                    style={{
+                                        background: 'var(--card-bg)',
+                                        border: '1px solid var(--border-default)',
+                                        borderRadius: '6px',
+                                        padding: '5px 10px',
+                                        fontSize: '11px',
+                                        fontWeight: 600,
+                                        color: 'var(--text-primary)',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '5px',
+                                        boxShadow: 'var(--card-shadow)'
+                                    }}
+                                >
+                                    <ArrowLeft size={13} /> All Jobs ({positions.length})
+                                </button>
+                                <span style={{ fontSize: '11px', fontWeight: 700, color: '#059669', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {activePosition.jobId}: {activePosition.title}
+                                </span>
+                            </div>
+                        )}
                         {/* Column 3 Header Card (Streamlined for maximum candidate list space) */}
                         <div style={{
                             padding: '12px 18px',
@@ -2161,7 +2231,7 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                             }}
                                         >
                                             {/* Line 1: Checkbox, Avatar, Name, Email, Score Pill, Stage Dropdown, Invite */}
-                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
                                                     <input
                                                         type="checkbox"
@@ -2269,7 +2339,7 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                             </div>
 
                                             {/* Line 2: CV Link • Email • Experience Tag • Top 3 Skills */}
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: 'var(--text-secondary)', paddingLeft: '40px', flexWrap: 'wrap' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: 'var(--text-secondary)', paddingLeft: isMobile ? '0px' : '40px', flexWrap: 'wrap' }}>
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); handleDownloadCv(cand); }}
                                                     style={{
@@ -2347,20 +2417,84 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                             )}
                         </div>
                     </div>
+                    )}
 
                     {/* ── COLUMN 4: Selected Candidate Drilldown (DEEP ACC-TO-JD EVALUATION PANEL) ── */}
                     {selectedCandidate && (
-                        <div style={{
-                            width: '380px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            background: 'var(--bg-app)',
-                            borderLeft: '1px solid var(--border-default)',
-                            flexShrink: 0,
-                            overflowY: 'auto',
-                            padding: '16px',
-                            gap: '14px'
-                        }}>
+                        <div style={
+                            isMobile ? {
+                                position: 'fixed',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: '54px',
+                                zIndex: 1100,
+                                background: 'var(--bg-app)',
+                                overflowY: 'auto',
+                                padding: '16px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '14px',
+                                boxShadow: '0 -4px 20px rgba(0,0,0,0.3)'
+                            } : {
+                                width: isTablet ? '330px' : '380px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                background: 'var(--bg-app)',
+                                borderLeft: '1px solid var(--border-default)',
+                                flexShrink: 0,
+                                overflowY: 'auto',
+                                padding: '16px',
+                                gap: '14px'
+                            }
+                        }>
+                            {/* Mobile Top Back Button Header */}
+                            {isMobile && (
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '8px 12px',
+                                    background: 'var(--card-bg)',
+                                    border: '1px solid var(--border-default)',
+                                    borderRadius: '8px',
+                                    marginBottom: '2px'
+                                }}>
+                                    <button
+                                        onClick={() => setSelectedCandidate(null)}
+                                        style={{
+                                            background: 'transparent',
+                                            border: 'none',
+                                            color: 'var(--text-primary)',
+                                            fontSize: '12px',
+                                            fontWeight: 600,
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '6px'
+                                        }}
+                                    >
+                                        <ArrowLeft size={14} /> Back to Candidates List
+                                    </button>
+                                    <button
+                                        onClick={() => setSelectedCandidate(null)}
+                                        style={{
+                                            background: 'var(--bg-subtle)',
+                                            border: '1px solid var(--border-default)',
+                                            borderRadius: '50%',
+                                            width: '28px',
+                                            height: '28px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            cursor: 'pointer',
+                                            color: 'var(--text-secondary)'
+                                        }}
+                                    >
+                                        <X size={14} />
+                                    </button>
+                                </div>
+                            )}
                             {/* Card 1: Candidate Overview & Quick Contact Card */}
                             <div style={{
                                 background: 'var(--card-bg)',
