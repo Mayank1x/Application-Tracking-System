@@ -1,0 +1,26 @@
+Job Title: NLP / Machine Learning Engineer Intern
+Location: Bengaluru (Hybrid)
+
+Company Overview:
+We are looking for a highly motivated intern to support the development of NLP and machine learning solutions for talent intelligence products.
+
+Key Responsibilities:
+- Build and improve NLP pipelines for resume and job text analysis.
+- Perform data preprocessing, tokenization, lemmatization, and feature extraction.
+- Implement and evaluate TF-IDF and similarity-based matching methods.
+- Develop backend APIs using FastAPI or Flask.
+- Collaborate with engineering, product, and analytics teams.
+- Prepare technical documentation and present model insights.
+
+Required Skills:
+Python, SQL, Machine Learning, Natural Language Processing,
+Scikit-learn, NLTK, Pandas, NumPy, FastAPI, REST API,
+Git, GitHub, Docker, AWS, Communication, Teamwork, Problem Solving.
+
+Preferred Skills:
+Deep Learning, TensorFlow or PyTorch, Power BI, Linux, MongoDB.
+
+Eligibility:
+- B.Tech / BE in Computer Science or related discipline
+- Strong understanding of core NLP concepts and data structures
+- Good verbal and written communication skills

@@ -1,0 +1,17 @@
+Neha Gupta
+QA Automation Engineer
+Email: neha.gupta@example.com | Phone: +91 9654321987 | Noida
+
+PROFESSIONAL SUMMARY
+QA Automation Engineer with 3 years of experience writing automated test suites using Python, Selenium, and Postman.
+
+EDUCATION
+B.Tech in Information Technology (2021)
+
+WORK EXPERIENCE
+QA Engineer | QualitySoft (2021 - Present)
+- Designed automated test frameworks using Python.
+- Tested REST APIs using Postman and Swagger.
+
+SKILLS
+Python, Selenium, Postman, Unit Testing, Git, Jira, Agile, Manual Testing.

@@ -1,0 +1,18 @@
+Ananya Deshmukh
+DevOps & Cloud Engineer
+Email: ananya.d@example.com | Phone: +91 9871122445 | Bangalore
+
+PROFESSIONAL SUMMARY
+Cloud & DevOps Engineer with 4 years of experience managing AWS infrastructure, Docker containers, Kubernetes (K8s), and CI/CD automation.
+
+EDUCATION
+B.Tech in Electrical Engineering (2020)
+
+WORK EXPERIENCE
+DevOps Engineer | CloudScale (2020 - Present)
+- Automated continuous integration and deployment pipelines using GitHub Actions and Jenkins.
+- Managed Kubernetes clusters and Docker containers on AWS.
+- Scripted infrastructure using Python and Bash.
+
+SKILLS
+AWS, Docker, Kubernetes, CI/CD, Git, Linux, Python, Bash, Terraform, SQL.

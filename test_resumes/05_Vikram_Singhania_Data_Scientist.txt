@@ -1,0 +1,18 @@
+Vikram Singhania
+Data Scientist
+Email: vikram.s@example.com | Phone: +91 9456123789 | Delhi
+
+PROFESSIONAL SUMMARY
+Data Scientist with 3 years of experience in Machine Learning, NLP, Python, and SQL. Passionate about predictive modeling and data visualization.
+
+EDUCATION
+Master of Science in Data Science (2021), Delhi University
+
+WORK EXPERIENCE
+Data Scientist | AnalyticsHub (2021 - Present)
+- Built predictive machine learning models using Scikit-learn, Pandas, and PyTorch.
+- Performed NLP sentiment analysis and text summarization.
+- Extracted insights using SQL and built Power BI reports.
+
+SKILLS
+Python, Machine Learning, Natural Language Processing, PyTorch, Scikit-learn, SQL, Power BI, Git, Docker.

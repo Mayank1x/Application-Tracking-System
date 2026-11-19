@@ -1,0 +1,17 @@
+Arjun Kapoor
+Entry Level Python Developer
+Email: arjun.k@example.com | Phone: +91 9765432109 | Chennai
+
+PROFESSIONAL SUMMARY
+Recent Computer Science graduate seeking an entry-level software engineering role. Strong foundation in Python, SQL, and algorithms.
+
+EDUCATION
+B.Tech in Computer Science (2023), Anna University
+
+WORK EXPERIENCE
+Academic Projects (2022 - 2023)
+- AI Resume Matcher: Developed a Python script to calculate similarity scores.
+- Student Management Portal: Web app built with Python and SQLite.
+
+SKILLS
+Python, SQL, HTML, CSS, Git, Communication, Problem Solving.

@@ -1,0 +1,21 @@
+Job Title: Senior Full Stack / AI Developer
+Location: Remote / Hybrid
+Experience Required: 3-5 years of industry experience
+Education: Bachelor's or Master's in Computer Science or related engineering field
+
+About the Role:
+We are looking for a Senior Full Stack & AI Engineer to architect, build, and deploy high-performance intelligent web applications. You will work on scalable FastAPI backends, React web interfaces, and integrate state-of-the-art NLP and Large Language Model pipelines.
+
+Key Requirements (Must Have):
+- 3+ years of professional experience with Python and JavaScript / TypeScript
+- Strong proficiency in modern React and backend frameworks like FastAPI or Flask
+- Hands-on experience with Machine Learning, Natural Language Processing (NLP), or Sentence Transformers
+- Proficiency in Relational Databases (PostgreSQL or SQL) and Docker containerization
+- Solid grasp of REST API development, Git version control, and CI/CD pipelines
+- Strong problem solving and communication skills
+
+Nice to Have (Bonus Skills):
+- Experience with PyTorch or Deep Learning architectures
+- Experience with Cloud deployment (AWS or GCP) and Kubernetes (K8s)
+- Familiarity with MongoDB or Redis caching
+- Experience building AI-driven ATS or recommendation systems

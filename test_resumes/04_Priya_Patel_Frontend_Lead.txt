@@ -1,0 +1,17 @@
+Priya Patel
+Frontend Engineer
+Email: priya.patel@example.com | Phone: +91 9988776655 | Mumbai
+
+PROFESSIONAL SUMMARY
+Frontend Engineer with 4 years of experience crafting modern web applications using React, JavaScript, TypeScript, and HTML/CSS.
+
+EDUCATION
+B.Sc in Computer Science, Mumbai University (2020)
+
+WORK EXPERIENCE
+Frontend Developer | WebSolutions (2020 - Present)
+- Engineered single-page applications using React, Next.js, and Redux.
+- Integrated REST APIs and collaborated with backend engineers.
+
+SKILLS
+React, JavaScript, TypeScript, HTML, CSS, Tailwind, Git, Figma, Communication, Teamwork.

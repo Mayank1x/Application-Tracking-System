@@ -1,0 +1,23 @@
+Aarav Sharma
+Senior Full Stack & AI Engineer
+Email: aarav.sharma@example.com | Phone: +91 9876543210 | Bangalore, India
+GitHub: github.com/aaravsharma | LinkedIn: linkedin.com/in/aaravsharma
+
+PROFESSIONAL SUMMARY
+Senior Full Stack & AI Engineer with 5+ years of experience architecting end-to-end web applications and NLP microservices. Expert in Python, FastAPI, React, PostgreSQL, Docker, and PyTorch.
+
+EDUCATION
+Bachelor of Technology in Computer Science, IIT Madras (2019)
+
+WORK EXPERIENCE
+Senior Software Engineer | CloudTech Solutions (Jan 2021 - Present)
+- Architected high-throughput REST APIs using FastAPI and Python, serving 10M+ daily requests.
+- Built real-time React frontend dashboards with TypeScript and Tailwind CSS.
+- Integrated Sentence Transformers and PyTorch embeddings for semantic candidate search.
+- Containerized microservices using Docker and orchestrated CI/CD pipelines.
+Software Engineer | DataCraft Labs (June 2019 - Dec 2020)
+- Developed data pipelines using PostgreSQL and Python.
+- Implemented NLP classification models using Scikit-learn and NLTK.
+
+SKILLS
+Python, FastAPI, React, TypeScript, JavaScript, Docker, PostgreSQL, SQL, Machine Learning, NLP, PyTorch, Git, CI/CD, REST API, AWS, Redis, Communication.

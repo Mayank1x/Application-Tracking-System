@@ -1,0 +1,17 @@
+Sunil Rao
+Senior Java Developer
+Email: sunil.rao@example.com | Phone: +91 9812345670 | Hyderabad
+
+PROFESSIONAL SUMMARY
+Java Backend Developer with 5 years of experience developing enterprise services using Java, Spring Boot, and Oracle SQL.
+
+EDUCATION
+B.Tech in Computer Science (2019)
+
+WORK EXPERIENCE
+Senior Java Developer | Enterprise Systems (2019 - Present)
+- Built microservices using Java and Spring Boot.
+- Managed relational database schemas with SQL.
+
+SKILLS
+Java, Spring Boot, SQL, Microservices, REST API, Git, Docker, Linux, Agile.

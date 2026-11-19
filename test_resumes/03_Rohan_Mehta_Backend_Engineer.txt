@@ -1,0 +1,18 @@
+Rohan Mehta
+Backend Software Engineer
+Email: rohan.mehta@example.com | Phone: +91 9811223344 | Pune
+
+PROFESSIONAL SUMMARY
+Backend Software Engineer with 3.5 years of experience building scalable REST APIs in Python and Flask. Strong SQL and Docker knowledge.
+
+EDUCATION
+B.E. in Computer Science, Pune University (2020)
+
+WORK EXPERIENCE
+Backend Developer | InnoTech (Aug 2020 - Present)
+- Built robust RESTful APIs using Flask and Python.
+- Managed PostgreSQL database clusters and wrote comprehensive unit tests.
+- Dockerized applications and maintained Git workflows.
+
+SKILLS
+Python, Flask, REST API, PostgreSQL, SQL, Docker, Git, CI/CD, Redis, Linux, Problem Solving.

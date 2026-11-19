@@ -1,0 +1,17 @@
+Kavita Nair
+Junior Full Stack Developer
+Email: kavita.nair@example.com | Phone: +91 9321456789 | Kochi
+
+PROFESSIONAL SUMMARY
+Junior Full Stack Developer with 1.5 years of experience building web apps with React, Python, and SQLite.
+
+EDUCATION
+Bachelor of Computer Applications (BCA, 2022)
+
+WORK EXPERIENCE
+Junior Web Developer | TechNest (2022 - Present)
+- Assisted in developing REST APIs using FastAPI.
+- Created React UI components.
+
+SKILLS
+Python, React, JavaScript, FastAPI, HTML, CSS, Git, SQLite.
