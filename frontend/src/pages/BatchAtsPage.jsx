@@ -151,14 +151,20 @@ export default function BatchAtsPage({
     const [positionResults, setPositionResults] = useState({});
     const results = positionResults[activePositionId] || null;
 
-    // Dynamic pipeline stats helper (Real-time counts, NO hardcoded strings)
+    // Dynamic pipeline stats helper (Real-time counts, shortlisted increases when candidate gets Offer)
     const getPositionSubtitle = (pos) => {
         const res = positionResults[pos.id];
         if (!res || !res.candidates || res.candidates.length === 0) {
             return '0 candidates evaluated';
         }
         const total = res.candidates.length;
-        const shortlisted = res.candidates.filter(c => c.overall_score >= 80).length;
+        const minPass = settings?.minPassingScore || 50;
+        const shortlisted = res.candidates.filter(c => {
+            const currentStage = candidateStages[c.candidate_id] || (
+                c.overall_score < minPass ? 'Reject' : 'Screen'
+            );
+            return currentStage === 'Offer';
+        }).length;
         return `${total} in pipeline | ${shortlisted} shortlisted`;
     };
 
@@ -1664,129 +1670,157 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                         background: 'var(--bg-app)',
                         overflow: 'hidden'
                     }}>
-                        {/* Column 3 Header Card */}
+                        {/* Column 3 Header Card (Streamlined for maximum candidate list space) */}
                         <div style={{
-                            padding: '16px 20px',
+                            padding: '12px 18px',
                             borderBottom: '1px solid var(--border-default)',
                             background: 'var(--card-bg)',
                             boxShadow: 'var(--card-shadow)'
                         }}>
-                            {/* Position Title & Spec Badges */}
-                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
-                                <div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
-                                        <span style={{
-                                            fontFamily: 'monospace',
+                            {/* Row 1: Position Title + Spec Badges + Action Buttons */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                    <span style={{
+                                        fontFamily: 'monospace',
+                                        fontSize: '11px',
+                                        fontWeight: 700,
+                                        padding: '2px 8px',
+                                        borderRadius: '4px',
+                                        background: 'var(--bg-subtle)',
+                                        color: 'var(--text-secondary)',
+                                        border: '1px solid var(--border-default)'
+                                    }}>
+                                        {activePosition.jobId}
+                                    </span>
+                                    <select
+                                        value={activePosition.status}
+                                        onChange={(e) => handleUpdatePositionStatus(activePosition.id, e.target.value)}
+                                        title="Click to change job status (Open, Draft, Closed)"
+                                        style={{
                                             fontSize: '11px',
                                             fontWeight: 700,
                                             padding: '2px 8px',
-                                            borderRadius: '4px',
-                                            background: 'var(--bg-subtle)',
-                                            color: 'var(--text-secondary)',
-                                            border: '1px solid var(--border-default)'
-                                        }}>
-                                            {activePosition.jobId}
-                                        </span>
-                                        <select
-                                            value={activePosition.status}
-                                            onChange={(e) => handleUpdatePositionStatus(activePosition.id, e.target.value)}
-                                            title="Click to change job status (Open, Draft, Closed)"
-                                            style={{
-                                                fontSize: '11px',
-                                                fontWeight: 700,
-                                                padding: '2px 8px',
-                                                borderRadius: '999px',
-                                                cursor: 'pointer',
-                                                border: `1px solid ${activePosition.status === 'Open' ? 'var(--score-high-border)' : activePosition.status === 'Draft' ? 'rgba(217, 119, 6, 0.4)' : 'rgba(220, 38, 38, 0.4)'}`,
-                                                background: activePosition.status === 'Open' ? 'var(--score-high-bg)' : activePosition.status === 'Draft' ? 'rgba(217, 119, 6, 0.12)' : 'rgba(220, 38, 38, 0.12)',
-                                                color: activePosition.status === 'Open' ? '#059669' : activePosition.status === 'Draft' ? '#d97706' : '#dc2626',
-                                                outline: 'none'
-                                            }}
-                                        >
-                                            <option value="Open">Open</option>
-                                            <option value="Draft">Draft</option>
-                                            <option value="Closed">Closed</option>
-                                        </select>
-                                        <h2 style={{ fontSize: '17px', fontWeight: 800, margin: 0, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
-                                            {activePosition.title}
-                                        </h2>
-                                    </div>
-
-                                    {/* JD Specification Pills */}
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
-                                        <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                            <MapPin size={11} style={{ color: 'var(--text-tertiary)' }} /> {activePosition.location}
-                                        </span>
-                                        <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                            <Briefcase size={11} style={{ color: 'var(--text-tertiary)' }} /> {activePosition.workType}
-                                        </span>
-                                        <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: '#059669', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                            <DollarSign size={11} style={{ color: '#059669' }} /> {activePosition.salaryRange}
-                                        </span>
-                                        <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                            <Clock size={11} style={{ color: 'var(--text-tertiary)' }} /> {activePosition.experienceRequired}
-                                        </span>
-                                        <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                            <GraduationCap size={11} style={{ color: 'var(--text-tertiary)' }} /> {activePosition.educationRequired}
-                                        </span>
-                                    </div>
+                                            borderRadius: '999px',
+                                            cursor: 'pointer',
+                                            border: `1px solid ${activePosition.status === 'Open' ? 'var(--score-high-border)' : activePosition.status === 'Draft' ? 'rgba(217, 119, 6, 0.4)' : 'rgba(220, 38, 38, 0.4)'}`,
+                                            background: activePosition.status === 'Open' ? 'var(--score-high-bg)' : activePosition.status === 'Draft' ? 'rgba(217, 119, 6, 0.12)' : 'rgba(220, 38, 38, 0.12)',
+                                            color: activePosition.status === 'Open' ? '#059669' : activePosition.status === 'Draft' ? '#d97706' : '#dc2626',
+                                            outline: 'none'
+                                        }}
+                                    >
+                                        <option value="Open">Open</option>
+                                        <option value="Draft">Draft</option>
+                                        <option value="Closed">Closed</option>
+                                    </select>
+                                    <h2 style={{ fontSize: '16px', fontWeight: 800, margin: 0, color: 'var(--text-primary)', letterSpacing: '-0.2px' }}>
+                                        {activePosition.title}
+                                    </h2>
+                                    <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}>
+                                        {activePosition.location}
+                                    </span>
+                                    <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: '#059669', fontWeight: 600 }}>
+                                        {activePosition.salaryRange}
+                                    </span>
+                                    <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}>
+                                        {activePosition.experienceRequired}
+                                    </span>
                                 </div>
 
-                                {/* View Full JD Requirements Button */}
-                                <button
-                                    onClick={() => setShowJdDetailsModal(true)}
-                                    style={{
-                                        background: 'var(--bg-subtle)',
-                                        border: '1px solid var(--border-default)',
-                                        padding: '6px 12px',
-                                        borderRadius: '6px',
-                                        fontSize: '11px',
-                                        fontWeight: 600,
-                                        color: 'var(--text-primary)',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '5px',
-                                        whiteSpace: 'nowrap',
-                                        boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
-                                    }}
-                                >
-                                    <FileText size={13} style={{ color: '#059669' }} /> View Full JD
-                                </button>
+                                {/* Action Buttons: View JD + Load Demo + Upload Batch */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <button
+                                        onClick={() => setShowJdDetailsModal(true)}
+                                        style={{
+                                            background: 'var(--bg-subtle)',
+                                            border: '1px solid var(--border-default)',
+                                            padding: '5px 10px',
+                                            borderRadius: '6px',
+                                            fontSize: '11px',
+                                            fontWeight: 600,
+                                            color: 'var(--text-primary)',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            whiteSpace: 'nowrap'
+                                        }}
+                                    >
+                                        <FileText size={12} style={{ color: '#059669' }} /> View Full JD
+                                    </button>
+
+                                    <button
+                                        onClick={handleLoadDemoDataset}
+                                        style={{
+                                            border: 'none',
+                                            background: '#4f46e5',
+                                            color: '#ffffff',
+                                            padding: '5px 12px',
+                                            borderRadius: '6px',
+                                            fontSize: '11px',
+                                            fontWeight: 600,
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '5px',
+                                            boxShadow: '0 2px 6px rgba(79, 70, 229, 0.25)'
+                                        }}
+                                    >
+                                        <Database size={12} /> Load Demo Dataset
+                                    </button>
+
+                                    <button
+                                        onClick={() => setShowUploadModal(true)}
+                                        style={{
+                                            border: 'none',
+                                            background: '#059669',
+                                            color: '#ffffff',
+                                            padding: '5px 12px',
+                                            borderRadius: '6px',
+                                            fontSize: '11px',
+                                            fontWeight: 600,
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '5px',
+                                            boxShadow: '0 2px 6px rgba(5, 150, 105, 0.25)'
+                                        }}
+                                    >
+                                        <UploadCloud size={12} /> Upload Batch Resumes
+                                    </button>
+                                </div>
                             </div>
 
-                            {/* Search bar inside Column 3 */}
-                            <div style={{ marginTop: '12px', position: 'relative' }}>
-                                <Search size={14} style={{ position: 'absolute', left: '10px', top: '9px', color: 'var(--text-tertiary)' }} />
-                                <input
-                                    type="text"
-                                    placeholder="Search candidate by name, specific skill (e.g. React, Docker), or location..."
-                                    value={candidateSearch}
-                                    onChange={(e) => setCandidateSearch(e.target.value)}
-                                    style={{
-                                        width: '100%',
-                                        padding: '7px 10px 7px 32px',
-                                        fontSize: '12px',
-                                        border: '1px solid var(--border-default)',
-                                        borderRadius: '6px',
-                                        outline: 'none',
-                                        background: 'var(--bg-subtle)',
-                                        color: 'var(--text-primary)'
-                                    }}
-                                />
-                            </div>
-
-                            {/* Action Toolbar */}
+                            {/* Row 2: Search Bar + Selection / Sort / Filter Controls */}
                             <div style={{
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
-                                marginTop: '12px',
-                                flexWrap: 'wrap',
-                                gap: '8px'
+                                marginTop: '10px',
+                                gap: '10px',
+                                flexWrap: 'wrap'
                             }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)' }}>
+                                <div style={{ position: 'relative', flex: 1, minWidth: '220px' }}>
+                                    <Search size={13} style={{ position: 'absolute', left: '10px', top: '8px', color: 'var(--text-tertiary)' }} />
+                                    <input
+                                        type="text"
+                                        placeholder="Search candidate by name, specific skill (e.g. React, Docker), or location..."
+                                        value={candidateSearch}
+                                        onChange={(e) => setCandidateSearch(e.target.value)}
+                                        style={{
+                                            width: '100%',
+                                            padding: '6px 10px 6px 30px',
+                                            fontSize: '11px',
+                                            border: '1px solid var(--border-default)',
+                                            borderRadius: '6px',
+                                            outline: 'none',
+                                            background: 'var(--bg-subtle)',
+                                            color: 'var(--text-primary)'
+                                        }}
+                                    />
+                                </div>
+
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)' }}>
                                         <input
                                             type="checkbox"
                                             checked={filteredCandidates.length > 0 && selectedCandidateIds.size === filteredCandidates.length}
@@ -1826,15 +1860,14 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                             border: '1px solid var(--border-default)',
                                             background: showFilters ? '#059669' : 'var(--card-bg)',
                                             color: showFilters ? '#ffffff' : 'var(--text-primary)',
-                                            padding: '4px 10px',
+                                            padding: '3px 8px',
                                             borderRadius: '6px',
                                             fontSize: '11px',
                                             fontWeight: 500,
                                             cursor: 'pointer',
                                             display: 'flex',
                                             alignItems: 'center',
-                                            gap: '4px',
-                                            boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+                                            gap: '4px'
                                         }}
                                     >
                                         <Filter size={11} /> Filters
@@ -1846,7 +1879,7 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                         style={{
                                             border: '1px solid var(--border-default)',
                                             background: 'var(--card-bg)',
-                                            padding: '4px 10px',
+                                            padding: '3px 8px',
                                             borderRadius: '6px',
                                             fontSize: '11px',
                                             fontWeight: 500,
@@ -1855,15 +1888,12 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                             display: 'flex',
                                             alignItems: 'center',
                                             gap: '4px',
-                                            opacity: filteredCandidates.length === 0 ? 0.5 : 1,
-                                            boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+                                            opacity: filteredCandidates.length === 0 ? 0.5 : 1
                                         }}
                                     >
                                         <Download size={11} /> Export CSV
                                     </button>
-                                </div>
 
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     {selectedCandidateIds.size > 0 && (
                                         <button
                                             onClick={() => {
@@ -1874,150 +1904,96 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                                 background: 'var(--score-high)',
                                                 color: '#ffffff',
                                                 border: 'none',
-                                                padding: '5px 12px',
+                                                padding: '3px 10px',
                                                 borderRadius: '6px',
                                                 fontSize: '11px',
                                                 fontWeight: 600,
-                                                cursor: 'pointer',
-                                                boxShadow: '0 2px 6px rgba(5, 150, 105, 0.3)'
+                                                cursor: 'pointer'
                                             }}
                                         >
                                             Bulk Invite ({selectedCandidateIds.size})
                                         </button>
                                     )}
-
-                                    {/* 1-Click Load Demo Button */}
-                                    <button
-                                        onClick={handleLoadDemoDataset}
-                                        style={{
-                                            border: 'none',
-                                            background: '#4f46e5',
-                                            color: '#ffffff',
-                                            padding: '6px 14px',
-                                            borderRadius: '6px',
-                                            fontSize: '11px',
-                                            fontWeight: 600,
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '6px',
-                                            boxShadow: '0 2px 8px rgba(79, 70, 229, 0.3)'
-                                        }}
-                                    >
-                                        <Database size={13} /> Load Demo Dataset
-                                    </button>
-
-                                    {/* Upload Batch Button */}
-                                    <button
-                                        onClick={() => setShowUploadModal(true)}
-                                        style={{
-                                            border: 'none',
-                                            background: '#059669',
-                                            color: '#ffffff',
-                                            padding: '6px 14px',
-                                            borderRadius: '6px',
-                                            fontSize: '11px',
-                                            fontWeight: 600,
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '6px',
-                                            boxShadow: '0 2px 8px rgba(5, 150, 105, 0.3)'
-                                        }}
-                                    >
-                                        <UploadCloud size={13} /> Upload Batch Resumes
-                                    </button>
                                 </div>
                             </div>
 
-                            {/* Live Evaluation Summary Banner (Clean, modern recruiter badges) */}
-                            {evaluatedCandidates.length > 0 && (
-                                <div style={{
-                                    marginTop: '12px',
-                                    padding: '8px 12px',
-                                    borderRadius: '8px',
-                                    background: 'var(--bg-subtle)',
-                                    border: '1px solid var(--border-default)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    flexWrap: 'wrap',
-                                    gap: '8px'
-                                }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Evaluated:</span>
-                                        <span style={{
-                                            background: 'var(--card-bg)',
-                                            border: '1px solid var(--border-default)',
-                                            padding: '2px 8px',
-                                            borderRadius: '4px',
-                                            fontWeight: 700,
-                                            color: 'var(--text-primary)'
-                                        }}>
-                                            {evaluatedCandidates.length} Candidates
-                                        </span>
-                                        <span style={{ color: 'var(--text-tertiary)' }}>for</span>
-                                        <span style={{
-                                            color: '#059669',
-                                            fontWeight: 700,
-                                            maxWidth: '220px',
-                                            overflow: 'hidden',
-                                            textOverflow: 'ellipsis',
-                                            whiteSpace: 'nowrap'
-                                        }}>
-                                            {activePosition.title}
-                                        </span>
-                                    </div>
+                            {/* Slim 1-Line Evaluation Summary (Adjustable <50% auto-reject, HR decides offer) */}
+                            {evaluatedCandidates.length > 0 && (() => {
+                                const minPass = settings?.minPassingScore || 50;
+                                const offersCount = evaluatedCandidates.filter(c => (candidateStages[c.candidate_id] || (c.overall_score < minPass ? 'Reject' : 'Screen')) === 'Offer').length;
+                                const qualifiedCount = evaluatedCandidates.filter(c => c.overall_score >= minPass).length;
+                                const rejectedCount = evaluatedCandidates.filter(c => c.overall_score < minPass).length;
 
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                                        <span style={{
-                                            fontSize: '11px',
-                                            fontWeight: 700,
-                                            padding: '2px 8px',
-                                            borderRadius: '999px',
-                                            background: 'var(--score-high-bg)',
-                                            color: '#059669',
-                                            border: '1px solid var(--score-high-border)',
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '4px'
-                                        }}>
-                                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#059669' }} />
-                                            {evaluatedCandidates.filter(c => c.overall_score >= 80).length} Ready for Offer (&ge;80%)
-                                        </span>
-                                        <span style={{
-                                            fontSize: '11px',
-                                            fontWeight: 700,
-                                            padding: '2px 8px',
-                                            borderRadius: '999px',
-                                            background: 'rgba(37, 99, 235, 0.1)',
-                                            color: '#2563eb',
-                                            border: '1px solid rgba(37, 99, 235, 0.3)',
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '4px'
-                                        }}>
-                                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#2563eb' }} />
-                                            {evaluatedCandidates.filter(c => c.overall_score >= 60 && c.overall_score < 80).length} Interview
-                                        </span>
-                                        <span style={{
-                                            fontSize: '11px',
-                                            fontWeight: 700,
-                                            padding: '2px 8px',
-                                            borderRadius: '999px',
-                                            background: 'rgba(220, 38, 38, 0.08)',
-                                            color: '#dc2626',
-                                            border: '1px solid rgba(220, 38, 38, 0.25)',
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '4px'
-                                        }}>
-                                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#dc2626' }} />
-                                            {evaluatedCandidates.filter(c => c.overall_score < 60).length} Disqualified
-                                        </span>
+                                return (
+                                    <div style={{
+                                        marginTop: '8px',
+                                        padding: '5px 12px',
+                                        borderRadius: '6px',
+                                        background: 'var(--bg-subtle)',
+                                        border: '1px solid var(--border-default)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        flexWrap: 'wrap',
+                                        gap: '8px',
+                                        fontSize: '11px'
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)' }}>
+                                            <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{evaluatedCandidates.length} Evaluated</span>
+                                            <span>•</span>
+                                            <span>Opening: <strong style={{ color: '#059669' }}>{activePosition.title}</strong></span>
+                                        </div>
+
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                            <span style={{
+                                                fontSize: '11px',
+                                                fontWeight: 700,
+                                                padding: '2px 8px',
+                                                borderRadius: '999px',
+                                                background: 'var(--score-high-bg)',
+                                                color: '#059669',
+                                                border: '1px solid var(--score-high-border)',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '4px'
+                                            }}>
+                                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#059669' }} />
+                                                {offersCount} Offers Extended
+                                            </span>
+                                            <span style={{
+                                                fontSize: '11px',
+                                                fontWeight: 700,
+                                                padding: '2px 8px',
+                                                borderRadius: '999px',
+                                                background: 'rgba(37, 99, 235, 0.1)',
+                                                color: '#2563eb',
+                                                border: '1px solid rgba(37, 99, 235, 0.3)',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '4px'
+                                            }}>
+                                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#2563eb' }} />
+                                                {qualifiedCount} Qualified (&ge;{minPass}%)
+                                            </span>
+                                            <span style={{
+                                                fontSize: '11px',
+                                                fontWeight: 700,
+                                                padding: '2px 8px',
+                                                borderRadius: '999px',
+                                                background: 'rgba(220, 38, 38, 0.08)',
+                                                color: '#dc2626',
+                                                border: '1px solid rgba(220, 38, 38, 0.25)',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '4px'
+                                            }}>
+                                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#dc2626' }} />
+                                                {rejectedCount} Auto-Reject (&lt;{minPass}%)
+                                            </span>
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                );
+                            })()}
 
                             {/* Filter Tray */}
                             {showFilters && (
@@ -2157,8 +2133,9 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                     const isChecked = selectedCandidateIds.has(cand.candidate_id);
                                     const rating5 = (cand.overall_score / 20).toFixed(1);
 
+                                    const minPass = settings?.minPassingScore || 50;
                                     const stage = candidateStages[cand.candidate_id] || (
-                                        cand.overall_score >= 80 ? 'Offer' : cand.overall_score >= 60 ? 'Interview' : 'Reject'
+                                        cand.overall_score < minPass ? 'Reject' : 'Screen'
                                     );
 
                                     const initials = cand.name
@@ -2839,7 +2816,7 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                                     Recruitment Pipeline Stage
                                                 </div>
                                                 <select
-                                                    value={candidateStages[selectedCandidate.candidate_id] || (selectedCandidate.overall_score >= 80 ? 'Offer' : selectedCandidate.overall_score >= 60 ? 'Interview' : 'Reject')}
+                                                    value={candidateStages[selectedCandidate.candidate_id] || (selectedCandidate.overall_score < (settings?.minPassingScore || 50) ? 'Reject' : 'Screen')}
                                                     onChange={(e) => handleSetStage(selectedCandidate.candidate_id, e.target.value)}
                                                     style={{
                                                         fontSize: '11px',
@@ -2875,7 +2852,8 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                                     { name: 'Offer', activeBg: '#059669', activeBorder: '#047857' },
                                                     { name: 'Reject', activeBg: '#dc2626', activeBorder: '#b91c1c' }
                                                 ].map(stg => {
-                                                    const current = candidateStages[selectedCandidate.candidate_id] || (selectedCandidate.overall_score >= 80 ? 'Offer' : selectedCandidate.overall_score >= 60 ? 'Interview' : 'Reject');
+                                                    const minPass = settings?.minPassingScore || 50;
+                                                    const current = candidateStages[selectedCandidate.candidate_id] || (selectedCandidate.overall_score < minPass ? 'Reject' : 'Screen');
                                                     const isActive = current === stg.name;
                                                     return (
                                                         <button

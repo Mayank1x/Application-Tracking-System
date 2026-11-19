@@ -9,7 +9,7 @@ export const DEFAULT_SETTINGS = {
         education: 10
     },
     model: 'sentence-transformers/all-MiniLM-L6-v2',
-    minPassingScore: 60,
+    minPassingScore: 50,
     strictMandatory: true,
     fresherProtection: true
 };
@@ -313,6 +313,45 @@ export default function SettingsModal({
                                     style={{ width: '100%', accentColor: '#7c3aed', cursor: 'pointer' }}
                                 />
                             </div>
+                        </div>
+                    </div>
+
+                    {/* Minimum Passing Score / Auto-Reject Threshold */}
+                    <div style={{
+                        padding: '12px',
+                        background: 'var(--bg-subtle)',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border-default)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '6px'
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                Auto-Reject Match Score Threshold:
+                            </div>
+                            <span style={{
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                padding: '2px 8px',
+                                borderRadius: '4px',
+                                background: 'rgba(220, 38, 38, 0.15)',
+                                color: '#dc2626'
+                            }}>
+                                &lt; {formSettings.minPassingScore || 50}% Auto-Rejects
+                            </span>
+                        </div>
+                        <input
+                            type="range"
+                            min="30"
+                            max="80"
+                            step="5"
+                            value={formSettings.minPassingScore || 50}
+                            onChange={(e) => setFormSettings(prev => ({ ...prev, minPassingScore: Number(e.target.value) }))}
+                            style={{ width: '100%', accentColor: '#dc2626', cursor: 'pointer' }}
+                        />
+                        <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
+                            Resumes with match scores below <strong>{formSettings.minPassingScore || 50}%</strong> automatically default to <strong>Reject</strong>. Scores at or above this threshold are left open for HR to review, interview, or extend an offer.
                         </div>
                     </div>
 
