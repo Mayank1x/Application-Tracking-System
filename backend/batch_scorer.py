@@ -239,6 +239,7 @@ def rank_candidates(candidate_profiles: List[Dict], parsed_jd: Dict) -> List[Dic
             "experience_status": exp_data["status"],
             "education": profile.get("education"),
             "summary": profile.get("summary"),
+            "raw_text": profile.get("raw_text", "") or profile.get("summary", ""),
             
             "overall_score": overall_score,
             "match_percentage": int(round(overall_score)),

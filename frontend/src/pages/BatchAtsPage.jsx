@@ -172,6 +172,7 @@ export default function BatchAtsPage({
         }
     }, [activePositionId, positionResults]);
     const [resumeFiles, setResumeFiles] = useState([]);
+    const [uploadedFilesMap, setUploadedFilesMap] = useState({}); // Stores native File objects for original-format download
     const [showUploadModal, setShowUploadModal] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
     const [minScoreFilter, setMinScoreFilter] = useState(0);
@@ -192,8 +193,10 @@ export default function BatchAtsPage({
     const [interviewType, setInterviewType] = useState('Technical Interview');
 
     // ── New Position Modal State ──
+    const [newPosJobId, setNewPosJobId] = useState('');
     const [newPosTitle, setNewPosTitle] = useState('');
     const [newPosDept, setNewPosDept] = useState('AI & Engineering');
+    const [newPosStatus, setNewPosStatus] = useState('Open'); // 'Open' | 'Draft' | 'Closed'
     const [newPosMeta, setNewPosMeta] = useState('');
     const [newPosJd, setNewPosJd] = useState('');
 
@@ -201,17 +204,13 @@ export default function BatchAtsPage({
     const [jobsSearch, setJobsSearch] = useState('');
     const [jobsFilterTab, setJobsFilterTab] = useState('all'); // 'all' | 'Open' | 'Draft' | 'Closed'
 
-    // ── Candidates Directory View State ──
+    // ── Candidates Directory View State (According to Opening) ──
     const [poolSearch, setPoolSearch] = useState('');
     const [poolStageFilter, setPoolStageFilter] = useState('all');
+    const [poolOpeningFilter, setPoolOpeningFilter] = useState('all');
 
-    // ── Candidate AI Tools Hub State (Matching User Reference Image 1) ──
-    const [activeToolId, setActiveToolId] = useState('audit'); // 'audit' | 'matcher' | 'skills' | 'bullets' | 'summarizer' | 'semantic' | 'scorecard' | 'roles' | 'coach'
-    const [toolResumeText, setToolResumeText] = useState('');
-    const [toolJdText, setToolJdText] = useState('');
-    const [toolLoading, setToolLoading] = useState(false);
-    const [toolResult, setToolResult] = useState(null);
-    const [toolError, setToolError] = useState('');
+    // ── Analytics View State (According to Job Opening) ──
+    const [analyticsOpeningFilter, setAnalyticsOpeningFilter] = useState('all');
 
     const activePosition = positions.find(p => p.id === activePositionId) || positions[0];
 
@@ -422,9 +421,12 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
             if (isFileArray) {
                 const formData = new FormData();
                 formData.append('jd_text', jdText);
+                const fileMap = { ...uploadedFilesMap };
                 filesOrTexts.forEach(file => {
                     formData.append('resumes', file);
+                    fileMap[file.name] = file;
                 });
+                setUploadedFilesMap(fileMap);
 
                 response = await axios.post(`${API_BASE}/api/batch-rank`, formData, {
                     headers: { 'Content-Type': 'multipart/form-data' }
@@ -555,18 +557,60 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
         setNoteInputText('');
     };
 
-    // ── Download CV Text ──
-    const handleDownloadCv = (cand) => {
+    // ── Download CV in Original Format (.pdf, .docx, .txt) ──
+    const handleDownloadCv = async (cand) => {
+        if (!cand) return;
+        const filename = cand.filename || `${cand.name.replace(/\s+/g, '_')}_CV.txt`;
+
+        // 1. If we have the native File object in memory from direct batch upload
+        if (uploadedFilesMap && uploadedFilesMap[cand.filename]) {
+            const file = uploadedFilesMap[cand.filename];
+            const url = URL.createObjectURL(file);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = file.name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            if (showToast) showToast(`Downloaded ${file.name} in original format`);
+            return;
+        }
+
+        // 2. Try fetching the file from the backend API (for test_resumes or server uploads)
+        if (cand.filename) {
+            try {
+                const resp = await fetch(`${API_BASE}/api/download-resume/${encodeURIComponent(cand.filename)}`);
+                if (resp.ok) {
+                    const blob = await resp.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = cand.filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    if (showToast) showToast(`Downloaded ${cand.filename}`);
+                    return;
+                }
+            } catch (e) {
+                console.warn('Backend download failed, falling back to text file:', e);
+            }
+        }
+
+        // 3. Fallback: generate download as .txt
         const textContent = cand.raw_text || `${cand.name}\n\nEmail: ${cand.email}\nExperience: ${cand.experience_formatted}\nSkills: ${cand.skills?.join(', ')}`;
         const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${cand.name.replace(/\s+/g, '_')}_CV.txt`;
+        a.download = filename.endsWith('.pdf') || filename.endsWith('.docx') ? `${cand.name.replace(/\s+/g, '_')}_CV.txt` : filename;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+        if (showToast) showToast(`Downloaded resume for ${cand.name}`);
     };
 
     // ── Export CSV ──
@@ -596,18 +640,59 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
         document.body.removeChild(link);
     };
 
+    // ── Update Position Status (Open, Draft, Closed) ──
+    const handleUpdatePositionStatus = (posId, newStatus) => {
+        setPositions(prev => prev.map(p => {
+            if (p.id !== posId) return p;
+            let color = '#059669';
+            let bg = 'var(--score-high-bg)';
+            let border = 'var(--score-high-border)';
+            if (newStatus === 'Draft') {
+                color = '#d97706';
+                bg = 'rgba(217, 119, 6, 0.12)';
+                border = 'rgba(217, 119, 6, 0.3)';
+            } else if (newStatus === 'Closed') {
+                color = '#dc2626';
+                bg = 'rgba(220, 38, 38, 0.12)';
+                border = 'rgba(220, 38, 38, 0.3)';
+            }
+            return {
+                ...p,
+                status: newStatus,
+                statusColor: color,
+                statusBg: bg,
+                statusBorder: border
+            };
+        }));
+        if (showToast) showToast(`Job status set to ${newStatus}`);
+    };
+
     // ── Create New Position ──
     const handleCreatePosition = () => {
         if (!newPosTitle.trim()) return;
+        const jobIdToUse = newPosJobId.trim() || `REQ-${Math.floor(100 + Math.random() * 900)}`;
+        let color = '#059669';
+        let bg = 'var(--score-high-bg)';
+        let border = 'var(--score-high-border)';
+        if (newPosStatus === 'Draft') {
+            color = '#d97706';
+            bg = 'rgba(217, 119, 6, 0.12)';
+            border = 'rgba(217, 119, 6, 0.3)';
+        } else if (newPosStatus === 'Closed') {
+            color = '#dc2626';
+            bg = 'rgba(220, 38, 38, 0.12)';
+            border = 'rgba(220, 38, 38, 0.3)';
+        }
+
         const newPos = {
             id: `pos-${Date.now()}`,
-            jobId: `REQ-${Math.floor(100 + Math.random() * 900)}`,
+            jobId: jobIdToUse,
             department: newPosDept,
             title: newPosTitle.trim(),
-            status: 'Open',
-            statusColor: '#059669',
-            statusBg: 'var(--score-high-bg)',
-            statusBorder: 'var(--score-high-border)',
+            status: newPosStatus,
+            statusColor: color,
+            statusBg: bg,
+            statusBorder: border,
             meta: newPosMeta || 'Full-time | Remote OK',
             experienceRequired: '2-4 years',
             educationRequired: "Bachelor's Degree",
@@ -619,11 +704,40 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
         setPositions(prev => [newPos, ...prev]);
         setActivePositionId(newPos.id);
         setShowNewPositionModal(false);
+        setNewPosJobId('');
         setNewPosTitle('');
+        setNewPosStatus('Open');
         setNewPosMeta('');
         setNewPosJd('');
-        if (showToast) showToast(`Position "${newPos.title}" created successfully.`);
+        if (showToast) showToast(`Position "${newPos.title}" (${jobIdToUse}) created.`);
     };
+
+    // ── All candidates aggregated across all evaluated positions ──
+    const allPoolCandidates = useMemo(() => {
+        const list = [];
+        positions.forEach(pos => {
+            const res = positionResults[pos.id];
+            if (res && res.candidates) {
+                res.candidates.forEach(cand => {
+                    list.push({
+                        ...cand,
+                        positionId: pos.id,
+                        positionTitle: pos.title,
+                        positionJobId: pos.jobId
+                    });
+                });
+            }
+        });
+        if (list.length === 0 && evaluatedCandidates.length > 0) {
+            return evaluatedCandidates.map(c => ({
+                ...c,
+                positionId: activePosition.id,
+                positionTitle: activePosition.title,
+                positionJobId: activePosition.jobId
+            }));
+        }
+        return list;
+    }, [positions, positionResults, evaluatedCandidates, activePosition]);
 
     // ── Open Invite Modal ──
     const handleOpenInvite = (cand, e) => {
@@ -636,59 +750,6 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
     const handleCopyText = (text, label) => {
         navigator.clipboard.writeText(text);
         if (showToast) showToast(`Copied ${label} to clipboard!`);
-    };
-
-    // ── Run Candidate Tool (from User Reference Image 1) ──
-    const handleRunCandidateTool = async (toolId = activeToolId, textToUse = toolResumeText) => {
-        const text = textToUse || (selectedCandidate?.raw_text || selectedCandidate?.summary || '');
-        if (!text || text.trim().length < 15) {
-            setToolError('Please provide or paste a resume text (at least 15 characters).');
-            return;
-        }
-        setToolLoading(true);
-        setToolError('');
-        setToolResult(null);
-
-        try {
-            let res;
-            const jd = toolJdText || activePosition.description;
-            if (toolId === 'audit') {
-                res = await axios.post(`${API_BASE}/api/audit`, { resume_text: text });
-            } else if (toolId === 'matcher') {
-                res = await axios.post(`${API_BASE}/api/match`, { resume_text: text, job_text: jd });
-            } else if (toolId === 'skills') {
-                res = await axios.post(`${API_BASE}/api/skills`, { resume_text: text });
-            } else if (toolId === 'bullets') {
-                res = await axios.post(`${API_BASE}/api/bullet-review`, { resume_text: text });
-            } else if (toolId === 'summarizer') {
-                res = await axios.post(`${API_BASE}/api/summarize`, { resume_text: text });
-            } else if (toolId === 'semantic') {
-                res = await axios.post(`${API_BASE}/api/semantic-match`, { resume_text: text, job_text: jd });
-            } else if (toolId === 'scorecard') {
-                res = await axios.post(`${API_BASE}/api/score-card`, { resume_text: text });
-            } else if (toolId === 'roles') {
-                res = await axios.post(`${API_BASE}/api/role-predict`, { resume_text: text });
-            } else if (toolId === 'coach') {
-                res = await axios.post(`${API_BASE}/api/coach`, { resume_text: text, message: 'Please evaluate this candidate profile and give 3 key hiring recommendations and 3 targeted interview probing questions.' });
-            }
-            setToolResult(res.data);
-            if (showToast) showToast(`Tool ${toolId.toUpperCase()} completed successfully!`);
-        } catch (err) {
-            console.error('Candidate Tool execution error:', err);
-            setToolError(err.response?.data?.detail || err.message || 'Tool execution encountered an error.');
-        } finally {
-            setToolLoading(false);
-        }
-    };
-
-    // ── Launch Selected Candidate in Tool Suite ──
-    const handleLaunchCandidateInTool = (cand, toolId = 'audit') => {
-        const text = cand.raw_text || cand.summary || cand.experience_summary || '';
-        setToolResumeText(text);
-        setToolJdText(activePosition.description);
-        setActiveToolId(toolId);
-        setActiveNav('tools');
-        handleRunCandidateTool(toolId, text);
     };
 
     return (
@@ -863,17 +924,26 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                                     {getPositionSubtitle(pos)}
                                                 </td>
                                                 <td style={{ padding: '12px 16px' }}>
-                                                    <span style={{
-                                                        padding: '3px 10px',
-                                                        borderRadius: '999px',
-                                                        fontSize: '11px',
-                                                        fontWeight: 600,
-                                                        background: pos.status === 'Open' ? 'var(--score-high-bg)' : pos.status === 'Draft' ? 'var(--score-mid-bg)' : 'var(--score-low-bg)',
-                                                        color: pos.status === 'Open' ? 'var(--score-high)' : pos.status === 'Draft' ? 'var(--score-mid)' : 'var(--score-low)',
-                                                        border: `1px solid ${pos.status === 'Open' ? 'var(--score-high-border)' : pos.status === 'Draft' ? 'var(--score-mid-border)' : 'var(--score-low-border)'}`
-                                                    }}>
-                                                        {pos.status}
-                                                    </span>
+                                                    <select
+                                                        value={pos.status}
+                                                        onChange={(e) => handleUpdatePositionStatus(pos.id, e.target.value)}
+                                                        style={{
+                                                            padding: '3px 8px',
+                                                            borderRadius: '999px',
+                                                            fontSize: '11px',
+                                                            fontWeight: 600,
+                                                            background: pos.status === 'Open' ? 'var(--score-high-bg)' : pos.status === 'Draft' ? 'var(--score-mid-bg)' : 'var(--score-low-bg)',
+                                                            color: pos.status === 'Open' ? 'var(--score-high)' : pos.status === 'Draft' ? 'var(--score-mid)' : 'var(--score-low)',
+                                                            border: `1px solid ${pos.status === 'Open' ? 'var(--score-high-border)' : pos.status === 'Draft' ? 'var(--score-mid-border)' : 'var(--score-low-border)'}`,
+                                                            cursor: 'pointer',
+                                                            outline: 'none'
+                                                        }}
+                                                        title="Change requisition status"
+                                                    >
+                                                        <option value="Open">Open</option>
+                                                        <option value="Draft">Draft</option>
+                                                        <option value="Closed">Closed</option>
+                                                    </select>
                                                 </td>
                                                 <td style={{ padding: '12px 16px', textAlign: 'right' }}>
                                                     <button
@@ -905,189 +975,225 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
             )}
 
             {/* ══════════════════════════════════════════════════════════════
-                VIEW: TALENT POOL & CANDIDATES DIRECTORY
+                VIEW: TALENT POOL & CANDIDATES DIRECTORY (Filtered by Opening)
             ══════════════════════════════════════════════════════════════ */}
-            {activeNav === 'candidates' && (
-                <div style={{ flex: 1, padding: '24px 32px', overflowY: 'auto', background: 'var(--bg-app)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                        <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <h1 style={{ fontSize: '20px', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-                                    Talent Pool & Candidate Directory
-                                </h1>
-                                <span style={{
-                                    fontSize: '11px',
-                                    fontWeight: 700,
-                                    background: 'var(--score-high-bg)',
-                                    color: 'var(--score-high)',
-                                    border: '1px solid var(--score-high-border)',
-                                    padding: '2px 8px',
-                                    borderRadius: '999px'
-                                }}>
-                                    {evaluatedCandidates.length} Evaluated
-                                </span>
+            {activeNav === 'candidates' && (() => {
+                const displayedPool = allPoolCandidates.filter(cand => {
+                    if (poolOpeningFilter !== 'all' && cand.positionId !== poolOpeningFilter) return false;
+                    const currentStage = candidateStages[cand.candidate_id] || (cand.overall_score >= 80 ? 'Offer' : cand.overall_score >= 60 ? 'Interview' : 'Reject');
+                    if (poolStageFilter !== 'all' && currentStage !== poolStageFilter) return false;
+                    if (!poolSearch) return true;
+                    const q = poolSearch.toLowerCase();
+                    return cand.name?.toLowerCase().includes(q) || cand.skills?.some(s => s.toLowerCase().includes(q)) || cand.location?.toLowerCase().includes(q);
+                });
+
+                return (
+                    <div style={{ flex: 1, padding: '24px 32px', overflowY: 'auto', background: 'var(--bg-app)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                            <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <h1 style={{ fontSize: '20px', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                                        Talent Pool & Candidate Directory
+                                    </h1>
+                                    <span style={{
+                                        fontSize: '11px',
+                                        fontWeight: 700,
+                                        background: 'var(--score-high-bg)',
+                                        color: 'var(--score-high)',
+                                        border: '1px solid var(--score-high-border)',
+                                        padding: '2px 8px',
+                                        borderRadius: '999px'
+                                    }}>
+                                        {displayedPool.length} Shown / {allPoolCandidates.length} Total
+                                    </span>
+                                </div>
+                                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                                    Search, review, and advance talent evaluated across your active job openings.
+                                </p>
                             </div>
-                            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                                Search, review, and advance talent evaluated across your hiring pipeline.
-                            </p>
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                            {evaluatedCandidates.length === 0 && (
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                                {allPoolCandidates.length === 0 && (
+                                    <button
+                                        onClick={handleLoadDemoDataset}
+                                        style={{
+                                            background: 'var(--accent-indigo)',
+                                            color: '#ffffff',
+                                            border: 'none',
+                                            padding: '8px 14px',
+                                            borderRadius: '6px',
+                                            fontSize: '12px',
+                                            fontWeight: 600,
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '6px',
+                                            boxShadow: '0 2px 6px rgba(79, 70, 229, 0.25)'
+                                        }}
+                                    >
+                                        <Database size={14} /> Load 10 Demo Candidates
+                                    </button>
+                                )}
                                 <button
-                                    onClick={handleLoadDemoDataset}
+                                    onClick={() => setActiveNav('positions')}
                                     style={{
-                                        background: 'var(--accent-indigo)',
+                                        background: '#059669',
                                         color: '#ffffff',
                                         border: 'none',
-                                        padding: '8px 14px',
+                                        padding: '8px 16px',
                                         borderRadius: '6px',
                                         fontSize: '12px',
                                         fontWeight: 600,
                                         cursor: 'pointer',
-                                        display: 'flex',
+                                        boxShadow: '0 2px 6px rgba(5, 150, 105, 0.25)'
+                                    }}
+                                >
+                                    Open 4-Column ATS Matrix &rarr;
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Filter Bar with Opening Selector and Stage Tabs */}
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: '12px',
+                            marginBottom: '16px',
+                            padding: '10px 14px',
+                            background: 'var(--card-bg)',
+                            border: '1px solid var(--border-default)',
+                            borderRadius: '10px',
+                            boxShadow: 'var(--card-shadow)'
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px' }}>
+                                    <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Opening:</span>
+                                    <select
+                                        value={poolOpeningFilter}
+                                        onChange={(e) => setPoolOpeningFilter(e.target.value)}
+                                        style={{
+                                            background: 'var(--bg-subtle)',
+                                            border: '1px solid var(--border-default)',
+                                            borderRadius: '6px',
+                                            padding: '4px 8px',
+                                            fontSize: '11px',
+                                            fontWeight: 600,
+                                            color: 'var(--text-primary)',
+                                            outline: 'none',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        <option value="all">All Openings ({positions.length})</option>
+                                        {positions.map(p => (
+                                            <option key={p.id} value={p.id}>{p.title} ({p.jobId})</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div style={{ display: 'flex', gap: '4px' }}>
+                                    {['all', 'Offer', 'Interview', 'Screen', 'Reject'].map(stg => (
+                                        <button
+                                            key={stg}
+                                            onClick={() => setPoolStageFilter(stg)}
+                                            style={{
+                                                padding: '4px 10px',
+                                                borderRadius: '6px',
+                                                fontSize: '11px',
+                                                fontWeight: 600,
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                background: poolStageFilter === stg ? (stg === 'Offer' ? '#059669' : stg === 'Interview' ? '#2563eb' : stg === 'Reject' ? '#dc2626' : '#64748b') : 'transparent',
+                                                color: poolStageFilter === stg ? '#ffffff' : 'var(--text-secondary)'
+                                            }}
+                                        >
+                                            {stg === 'all' ? 'All Stages' : stg}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div style={{ position: 'relative', width: '260px' }}>
+                                <Search size={14} style={{ position: 'absolute', left: '10px', top: '9px', color: 'var(--text-tertiary)' }} />
+                                <input
+                                    type="text"
+                                    placeholder="Search candidate, skill, location..."
+                                    value={poolSearch}
+                                    onChange={(e) => setPoolSearch(e.target.value)}
+                                    style={{
+                                        width: '100%',
+                                        padding: '6px 10px 6px 30px',
+                                        borderRadius: '6px',
+                                        border: '1px solid var(--border-default)',
+                                        background: 'var(--bg-subtle)',
+                                        color: 'var(--text-primary)',
+                                        fontSize: '11px',
+                                        outline: 'none'
+                                    }}
+                                />
+                            </div>
+                        </div>
+
+                        {!allPoolCandidates.length ? (
+                            <div style={{ textAlign: 'center', padding: '80px 20px', color: 'var(--text-tertiary)', background: 'var(--card-bg)', borderRadius: '10px', border: '1px solid var(--border-default)', boxShadow: 'var(--card-shadow)' }}>
+                                <Users size={40} style={{ marginBottom: '12px', color: 'var(--text-tertiary)' }} />
+                                <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>No Candidates Evaluated Yet</div>
+                                <div style={{ fontSize: '13px', marginTop: '6px', maxWidth: '420px', margin: '6px auto 16px auto' }}>
+                                    Load the sample candidate batch or upload resumes against any active job description to see instant AI ranking.
+                                </div>
+                                <button
+                                    onClick={handleLoadDemoDataset}
+                                    style={{
+                                        background: '#059669',
+                                        color: '#ffffff',
+                                        border: 'none',
+                                        padding: '8px 18px',
+                                        borderRadius: '6px',
+                                        fontSize: '12px',
+                                        fontWeight: 600,
+                                        cursor: 'pointer',
+                                        display: 'inline-flex',
                                         alignItems: 'center',
                                         gap: '6px',
-                                        boxShadow: '0 2px 6px rgba(79, 70, 229, 0.25)'
+                                        boxShadow: '0 2px 8px rgba(5, 150, 105, 0.3)'
                                     }}
                                 >
-                                    <Database size={14} /> Load 10 Demo Candidates
+                                    <Database size={14} /> Populate Talent Pool with 10 Candidates
                                 </button>
-                            )}
-                            <button
-                                onClick={() => setActiveNav('positions')}
-                                style={{
-                                    background: '#059669',
-                                    color: '#ffffff',
-                                    border: 'none',
-                                    padding: '8px 16px',
-                                    borderRadius: '6px',
-                                    fontSize: '12px',
-                                    fontWeight: 600,
-                                    cursor: 'pointer',
-                                    boxShadow: '0 2px 6px rgba(5, 150, 105, 0.25)'
-                                }}
-                            >
-                                Open 4-Column ATS Matrix &rarr;
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Filter Tabs & Search Bar */}
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: '12px',
-                        marginBottom: '16px',
-                        padding: '10px 14px',
-                        background: 'var(--card-bg)',
-                        border: '1px solid var(--border-default)',
-                        borderRadius: '10px',
-                        boxShadow: 'var(--card-shadow)'
-                    }}>
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                            {['all', 'Offer', 'Interview', 'Screen', 'Reject'].map(stg => (
-                                <button
-                                    key={stg}
-                                    onClick={() => setPoolStageFilter(stg)}
-                                    style={{
-                                        padding: '5px 12px',
-                                        borderRadius: '6px',
-                                        fontSize: '11px',
-                                        fontWeight: 600,
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        background: poolStageFilter === stg ? (stg === 'Offer' ? '#059669' : stg === 'Interview' ? '#2563eb' : stg === 'Reject' ? '#dc2626' : '#64748b') : 'transparent',
-                                        color: poolStageFilter === stg ? '#ffffff' : 'var(--text-secondary)'
-                                    }}
-                                >
-                                    {stg === 'all' ? `All Talent (${evaluatedCandidates.length})` : stg}
-                                </button>
-                            ))}
-                        </div>
-
-                        <div style={{ position: 'relative', width: '280px' }}>
-                            <Search size={14} style={{ position: 'absolute', left: '10px', top: '9px', color: 'var(--text-tertiary)' }} />
-                            <input
-                                type="text"
-                                placeholder="Search by name, skill, or location..."
-                                value={poolSearch}
-                                onChange={(e) => setPoolSearch(e.target.value)}
-                                style={{
-                                    width: '100%',
-                                    padding: '6px 10px 6px 30px',
-                                    borderRadius: '6px',
-                                    border: '1px solid var(--border-default)',
-                                    background: 'var(--bg-subtle)',
-                                    color: 'var(--text-primary)',
-                                    fontSize: '11px',
-                                    outline: 'none'
-                                }}
-                            />
-                        </div>
-                    </div>
-
-                    {!evaluatedCandidates.length ? (
-                        <div style={{ textAlign: 'center', padding: '80px 20px', color: 'var(--text-tertiary)', background: 'var(--card-bg)', borderRadius: '10px', border: '1px solid var(--border-default)', boxShadow: 'var(--card-shadow)' }}>
-                            <Users size={40} style={{ marginBottom: '12px', color: 'var(--text-tertiary)' }} />
-                            <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>No Candidates Evaluated Yet</div>
-                            <div style={{ fontSize: '13px', marginTop: '6px', maxWidth: '420px', margin: '6px auto 16px auto' }}>
-                                Load the sample candidate batch or upload resumes against any active job description to see instant AI ranking.
                             </div>
-                            <button
-                                onClick={handleLoadDemoDataset}
-                                style={{
-                                    background: '#059669',
-                                    color: '#ffffff',
-                                    border: 'none',
-                                    padding: '8px 18px',
-                                    borderRadius: '6px',
-                                    fontSize: '12px',
-                                    fontWeight: 600,
-                                    cursor: 'pointer',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '6px',
-                                    boxShadow: '0 2px 8px rgba(5, 150, 105, 0.3)'
-                                }}
-                            >
-                                <Database size={14} /> Populate Talent Pool with 10 Candidates
-                            </button>
-                        </div>
-                    ) : (
-                        <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-default)', borderRadius: '10px', overflow: 'hidden', boxShadow: 'var(--card-shadow)' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
-                                <thead>
-                                    <tr style={{ background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}>
-                                        <th style={{ padding: '12px 16px' }}>Rank</th>
-                                        <th style={{ padding: '12px 16px' }}>Candidate Name</th>
-                                        <th style={{ padding: '12px 16px' }}>Evaluated Role</th>
-                                        <th style={{ padding: '12px 16px' }}>Experience</th>
-                                        <th style={{ padding: '12px 16px' }}>ATS Match Score</th>
-                                        <th style={{ padding: '12px 16px' }}>Stage</th>
-                                        <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {evaluatedCandidates
-                                        .filter(cand => {
-                                            const currentStage = candidateStages[cand.candidate_id] || 'Screen';
-                                            if (poolStageFilter !== 'all' && currentStage !== poolStageFilter) return false;
-                                            if (!poolSearch) return true;
-                                            const q = poolSearch.toLowerCase();
-                                            return cand.name?.toLowerCase().includes(q) || cand.skills?.some(s => s.toLowerCase().includes(q)) || cand.location?.toLowerCase().includes(q);
-                                        })
-                                        .map(cand => {
-                                            const stage = candidateStages[cand.candidate_id] || 'Screen';
+                        ) : (
+                            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-default)', borderRadius: '10px', overflow: 'hidden', boxShadow: 'var(--card-shadow)' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
+                                    <thead>
+                                        <tr style={{ background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}>
+                                            <th style={{ padding: '12px 16px' }}>Rank</th>
+                                            <th style={{ padding: '12px 16px' }}>Candidate Name</th>
+                                            <th style={{ padding: '12px 16px' }}>Target Opening</th>
+                                            <th style={{ padding: '12px 16px' }}>Experience</th>
+                                            <th style={{ padding: '12px 16px' }}>ATS Match Score</th>
+                                            <th style={{ padding: '12px 16px' }}>Stage</th>
+                                            <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {displayedPool.map((cand, idx) => {
+                                            const stage = candidateStages[cand.candidate_id] || (cand.overall_score >= 80 ? 'Offer' : cand.overall_score >= 60 ? 'Interview' : 'Reject');
                                             const rating5 = (cand.overall_score / 20).toFixed(1);
                                             return (
-                                                <tr key={cand.candidate_id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                                                    <td style={{ padding: '12px 16px', fontWeight: 700 }}>#{cand.rank}</td>
+                                                <tr key={cand.candidate_id || idx} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                                                    <td style={{ padding: '12px 16px', fontWeight: 700 }}>#{cand.rank || idx + 1}</td>
                                                     <td style={{ padding: '12px 16px' }}>
                                                         <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{cand.name}</div>
                                                         <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{cand.email} • {cand.location || 'Remote'}</div>
                                                     </td>
-                                                    <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{activePosition.title}</td>
+                                                    <td style={{ padding: '12px 16px' }}>
+                                                        <div style={{ fontWeight: 600, color: '#059669', fontSize: '11px' }}>
+                                                            {cand.positionTitle || activePosition.title}
+                                                        </div>
+                                                        <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', fontFamily: 'monospace' }}>
+                                                            {cand.positionJobId || activePosition.jobId}
+                                                        </span>
+                                                    </td>
                                                     <td style={{ padding: '12px 16px' }}>
                                                         <span style={{
                                                             padding: '2px 6px',
@@ -1129,6 +1235,7 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                                     <td style={{ padding: '12px 16px', textAlign: 'right' }}>
                                                         <button
                                                             onClick={() => {
+                                                                if (cand.positionId) setActivePositionId(cand.positionId);
                                                                 setSelectedCandidate(cand);
                                                                 setActiveNav('positions');
                                                             }}
@@ -1136,8 +1243,8 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                                                 background: '#059669',
                                                                 color: '#ffffff',
                                                                 border: 'none',
-                                                                padding: '4px 10px',
-                                                                borderRadius: '4px',
+                                                                padding: '5px 12px',
+                                                                borderRadius: '5px',
                                                                 fontSize: '11px',
                                                                 fontWeight: 600,
                                                                 cursor: 'pointer'
@@ -1149,647 +1256,200 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                                 </tr>
                                             );
                                         })}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </div>
-            )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                );
+            })()}
 
             {/* ══════════════════════════════════════════════════════════════
-                VIEW: RECRUITMENT PIPELINE ANALYTICS
+                VIEW: RECRUITMENT PIPELINE ANALYTICS (Opening-Specific)
             ══════════════════════════════════════════════════════════════ */}
-            {activeNav === 'analytics' && (
-                <div style={{ flex: 1, padding: '24px 32px', overflowY: 'auto', background: 'var(--bg-app)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                        <div>
-                            <h1 style={{ fontSize: '20px', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-                                Hiring Pipeline & Evaluation Analytics
-                            </h1>
-                            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                                High-level metrics on candidate screening accuracy, talent distribution, and skill gaps.
-                            </p>
-                        </div>
-                        <button
-                            onClick={() => setActiveNav('positions')}
-                            style={{
-                                background: '#059669',
-                                color: '#ffffff',
-                                border: 'none',
-                                padding: '8px 16px',
-                                borderRadius: '6px',
-                                fontSize: '12px',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                boxShadow: '0 2px 8px rgba(5, 150, 105, 0.3)'
-                            }}
-                        >
-                            Back to Positions & Ranking
-                        </button>
-                    </div>
+            {activeNav === 'analytics' && (() => {
+                const targetCandidates = analyticsOpeningFilter === 'all'
+                    ? allPoolCandidates
+                    : allPoolCandidates.filter(c => c.positionId === analyticsOpeningFilter);
 
-                    {/* Metric Cards Row - Elevated floating cards */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-                        <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-default)', borderRadius: '10px', padding: '18px', boxShadow: 'var(--card-shadow)' }}>
-                            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>Total Evaluated Resumes</div>
-                            <div style={{ fontSize: '30px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
-                                {results?.total_evaluated || evaluatedCandidates.length || 0}
-                            </div>
-                            <div style={{ fontSize: '11px', color: '#059669', marginTop: '4px', fontWeight: 500 }}>Multi-format parsed (PDF/DOCX/TXT)</div>
-                        </div>
+                const selectedOpening = positions.find(p => p.id === analyticsOpeningFilter);
+                const avgScore = targetCandidates.length
+                    ? Math.round(targetCandidates.reduce((a, b) => a + b.overall_score, 0) / targetCandidates.length)
+                    : 0;
+                const topContenders = targetCandidates.filter(c => c.overall_score >= 80).length;
+                const interviewCount = targetCandidates.filter(c => {
+                    const stg = candidateStages[c.candidate_id] || (c.overall_score >= 80 ? 'Offer' : c.overall_score >= 60 ? 'Interview' : 'Reject');
+                    return stg === 'Interview';
+                }).length;
+                const offerCount = targetCandidates.filter(c => {
+                    const stg = candidateStages[c.candidate_id] || (c.overall_score >= 80 ? 'Offer' : c.overall_score >= 60 ? 'Interview' : 'Reject');
+                    return stg === 'Offer';
+                }).length;
 
-                        <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-default)', borderRadius: '10px', padding: '18px', boxShadow: 'var(--card-shadow)' }}>
-                            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>Top Contenders</div>
-                            <div style={{ fontSize: '30px', fontWeight: 700, color: '#059669', marginTop: '4px' }}>
-                                {evaluatedCandidates.filter(c => c.overall_score >= 80).length}
-                            </div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>Score &ge; 80% (Ready for Offer)</div>
-                        </div>
+                // Derive skills based on opening
+                const skillsToShow = selectedOpening
+                    ? (selectedOpening.id === 'pos-1' ? ['Python', 'FastAPI', 'React', 'Docker', 'PostgreSQL', 'Machine Learning', 'TypeScript', 'SQL', 'REST API'] :
+                       selectedOpening.id === 'pos-2' ? ['Python', 'Django', 'FastAPI', 'PostgreSQL', 'Redis', 'Docker', 'REST API', 'Git', 'CI/CD'] :
+                       selectedOpening.id === 'pos-3' ? ['Kubernetes', 'Docker', 'AWS', 'Terraform', 'CI/CD', 'Linux', 'Prometheus', 'Bash'] :
+                       ['Python', 'SQL', 'Machine Learning', 'Statistics', 'Pandas', 'Scikit-Learn', 'PyTorch'])
+                    : ['Python', 'React', 'FastAPI', 'PostgreSQL', 'Docker', 'Machine Learning', 'AWS', 'TypeScript', 'SQL', 'REST API'];
 
-                        <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-default)', borderRadius: '10px', padding: '18px', boxShadow: 'var(--card-shadow)' }}>
-                            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>Average ATS Score</div>
-                            <div style={{ fontSize: '30px', fontWeight: 700, color: '#2563eb', marginTop: '4px' }}>
-                                {evaluatedCandidates.length ? Math.round(evaluatedCandidates.reduce((a, b) => a + b.overall_score, 0) / evaluatedCandidates.length) : 0}%
-                            </div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>Dense BERT Semantic Cosine</div>
-                        </div>
-
-                        <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-default)', borderRadius: '10px', padding: '18px', boxShadow: 'var(--card-shadow)' }}>
-                            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>Interview Invitations</div>
-                            <div style={{ fontSize: '30px', fontWeight: 700, color: '#7c3aed', marginTop: '4px' }}>
-                                {Object.values(candidateStages).filter(s => s === 'Interview' || s === 'Offer').length}
-                            </div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>Recruiter actioned pipeline</div>
-                        </div>
-                    </div>
-
-                    {/* Pipeline Funnel Card */}
-                    <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-default)', borderRadius: '10px', padding: '20px', marginBottom: '24px', boxShadow: 'var(--card-shadow)' }}>
-                        <h3 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 16px 0', color: 'var(--text-primary)' }}>
-                            Recruitment Stage Conversion Funnel
-                        </h3>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-                            <div style={{ background: 'var(--bg-subtle)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-default)' }}>
-                                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Stage 1: Screened</div>
-                                <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
-                                    {evaluatedCandidates.length}
-                                </div>
-                                <div style={{ height: '6px', background: 'var(--border-default)', borderRadius: '3px', marginTop: '8px' }}>
-                                    <div style={{ width: '100%', height: '100%', background: '#64748b', borderRadius: '3px' }} />
-                                </div>
-                            </div>
-                            <div style={{ background: 'var(--bg-subtle)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-default)' }}>
-                                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Stage 2: Technical Interview</div>
-                                <div style={{ fontSize: '24px', fontWeight: 700, color: '#2563eb', marginTop: '4px' }}>
-                                    {Object.values(candidateStages).filter(s => s === 'Interview').length}
-                                </div>
-                                <div style={{ height: '6px', background: 'var(--border-default)', borderRadius: '3px', marginTop: '8px' }}>
-                                    <div style={{ width: evaluatedCandidates.length ? `${(Object.values(candidateStages).filter(s => s === 'Interview').length / evaluatedCandidates.length) * 100}%` : '0%', height: '100%', background: '#2563eb', borderRadius: '3px' }} />
-                                </div>
-                            </div>
-                            <div style={{ background: 'var(--bg-subtle)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-default)' }}>
-                                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Stage 3: Final Offer</div>
-                                <div style={{ fontSize: '24px', fontWeight: 700, color: '#059669', marginTop: '4px' }}>
-                                    {Object.values(candidateStages).filter(s => s === 'Offer').length}
-                                </div>
-                                <div style={{ height: '6px', background: 'var(--border-default)', borderRadius: '3px', marginTop: '8px' }}>
-                                    <div style={{ width: evaluatedCandidates.length ? `${(Object.values(candidateStages).filter(s => s === 'Offer').length / evaluatedCandidates.length) * 100}%` : '0%', height: '100%', background: '#059669', borderRadius: '3px' }} />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Skill Demand vs Supply */}
-                    <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-default)', borderRadius: '10px', padding: '20px', boxShadow: 'var(--card-shadow)' }}>
-                        <h3 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 12px 0', color: 'var(--text-primary)' }}>
-                            Core Mandatory Skills Distribution
-                        </h3>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                            {['Python', 'React', 'FastAPI', 'PostgreSQL', 'Docker', 'Machine Learning', 'Sentence Transformers', 'REST API', 'AWS', 'TypeScript', 'SQL'].map((skill, i) => (
-                                <span
-                                    key={i}
-                                    style={{
-                                        background: 'var(--score-high-bg)',
-                                        color: 'var(--score-high)',
-                                        border: '1px solid var(--score-high-border)',
-                                        padding: '5px 12px',
-                                        borderRadius: '6px',
-                                        fontSize: '12px',
-                                        fontWeight: 600,
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '5px'
-                                    }}
-                                >
-                                    <Check size={12} strokeWidth={2.5} /> {skill}
-                                </span>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* ══════════════════════════════════════════════════════════════
-                VIEW: CANDIDATE AI TOOLS SUITE (Matching User Reference Image 1)
-            ══════════════════════════════════════════════════════════════ */}
-            {activeNav === 'tools' && (
-                <div style={{ flex: 1, display: 'flex', height: '100%', overflow: 'hidden', background: 'var(--bg-app)' }}>
-                    {/* Left Sub-Sidebar: Matching User Reference Image 1 Exactly */}
-                    <div style={{
-                        width: '240px',
-                        borderRight: '1px solid var(--border-default)',
-                        background: 'var(--bg-surface)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        padding: '16px 12px',
-                        flexShrink: 0,
-                        overflowY: 'auto'
-                    }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', paddingLeft: '6px' }}>
-                            <Wrench size={16} style={{ color: '#06b6d4' }} />
-                            <h2 style={{ fontSize: '13px', fontWeight: 800, margin: 0, color: 'var(--text-primary)', letterSpacing: '0.3px', textTransform: 'uppercase' }}>
-                                AI Candidate Suite
-                            </h2>
-                        </div>
-
-                        {/* Section 1: CANDIDATE TOOLS */}
-                        <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-tertiary)', letterSpacing: '0.8px', padding: '6px 8px', textTransform: 'uppercase' }}>
-                            Candidate Tools
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginBottom: '14px' }}>
-                            {[
-                                { id: 'single', name: 'Single Resume View', icon: <User size={15} /> },
-                                { id: 'audit', name: 'Resume Audit', icon: <CheckCircle size={15} /> },
-                                { id: 'matcher', name: 'Resume Matcher', icon: <ArrowUpDown size={15} /> },
-                                { id: 'skills', name: 'Skill Extractor', icon: <Brain size={15} /> }
-                            ].map(item => (
-                                <button
-                                    key={item.id}
-                                    onClick={() => {
-                                        setActiveToolId(item.id);
-                                        if (toolResumeText) handleRunCandidateTool(item.id, toolResumeText);
-                                    }}
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '10px',
-                                        padding: '8px 10px',
-                                        borderRadius: '6px',
-                                        fontSize: '12px',
-                                        fontWeight: activeToolId === item.id ? 700 : 500,
-                                        border: activeToolId === item.id ? '1px solid rgba(6, 182, 212, 0.3)' : '1px solid transparent',
-                                        background: activeToolId === item.id ? (theme === 'dark' ? 'rgba(6, 182, 212, 0.15)' : '#ecfeff') : 'transparent',
-                                        color: activeToolId === item.id ? '#0891b2' : 'var(--text-secondary)',
-                                        cursor: 'pointer',
-                                        textAlign: 'left',
-                                        transition: 'all 0.15s ease'
-                                    }}
-                                >
-                                    <span style={{ color: activeToolId === item.id ? '#0891b2' : 'var(--text-tertiary)' }}>{item.icon}</span>
-                                    <span>{item.name}</span>
-                                </button>
-                            ))}
-                        </div>
-
-                        {/* Section 2: OPTIMIZE */}
-                        <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-tertiary)', letterSpacing: '0.8px', padding: '6px 8px', textTransform: 'uppercase' }}>
-                            Optimize
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginBottom: '14px' }}>
-                            {[
-                                { id: 'bullets', name: 'Bullet Review', icon: <ListChecks size={15} /> },
-                                { id: 'summarizer', name: 'Summarizer', icon: <FileText size={15} /> }
-                            ].map(item => (
-                                <button
-                                    key={item.id}
-                                    onClick={() => {
-                                        setActiveToolId(item.id);
-                                        if (toolResumeText) handleRunCandidateTool(item.id, toolResumeText);
-                                    }}
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '10px',
-                                        padding: '8px 10px',
-                                        borderRadius: '6px',
-                                        fontSize: '12px',
-                                        fontWeight: activeToolId === item.id ? 700 : 500,
-                                        border: activeToolId === item.id ? '1px solid rgba(6, 182, 212, 0.3)' : '1px solid transparent',
-                                        background: activeToolId === item.id ? (theme === 'dark' ? 'rgba(6, 182, 212, 0.15)' : '#ecfeff') : 'transparent',
-                                        color: activeToolId === item.id ? '#0891b2' : 'var(--text-secondary)',
-                                        cursor: 'pointer',
-                                        textAlign: 'left',
-                                        transition: 'all 0.15s ease'
-                                    }}
-                                >
-                                    <span style={{ color: activeToolId === item.id ? '#0891b2' : 'var(--text-tertiary)' }}>{item.icon}</span>
-                                    <span>{item.name}</span>
-                                </button>
-                            ))}
-                        </div>
-
-                        {/* Section 3: AI INSIGHTS */}
-                        <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-tertiary)', letterSpacing: '0.8px', padding: '6px 8px', textTransform: 'uppercase' }}>
-                            AI Insights
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginBottom: '14px' }}>
-                            {[
-                                { id: 'semantic', name: 'Semantic Matcher', icon: <Network size={15} /> },
-                                { id: 'scorecard', name: 'Score Card', icon: <Award size={15} /> },
-                                { id: 'roles', name: 'Role Predictor', icon: <Target size={15} /> },
-                                { id: 'coach', name: 'AI Coach', icon: <MessageCircle size={15} /> }
-                            ].map(item => (
-                                <button
-                                    key={item.id}
-                                    onClick={() => {
-                                        setActiveToolId(item.id);
-                                        if (toolResumeText) handleRunCandidateTool(item.id, toolResumeText);
-                                    }}
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '10px',
-                                        padding: '8px 10px',
-                                        borderRadius: '6px',
-                                        fontSize: '12px',
-                                        fontWeight: activeToolId === item.id ? 700 : 500,
-                                        border: activeToolId === item.id ? '1px solid rgba(6, 182, 212, 0.3)' : '1px solid transparent',
-                                        background: activeToolId === item.id ? (theme === 'dark' ? 'rgba(6, 182, 212, 0.15)' : '#ecfeff') : 'transparent',
-                                        color: activeToolId === item.id ? '#0891b2' : 'var(--text-secondary)',
-                                        cursor: 'pointer',
-                                        textAlign: 'left',
-                                        transition: 'all 0.15s ease'
-                                    }}
-                                >
-                                    <span style={{ color: activeToolId === item.id ? '#0891b2' : 'var(--text-tertiary)' }}>{item.icon}</span>
-                                    <span>{item.name}</span>
-                                </button>
-                            ))}
-                        </div>
-
-                        {/* Back to Ranking Matrix Button */}
-                        <button
-                            onClick={() => setActiveNav('positions')}
-                            style={{
-                                marginTop: 'auto',
-                                background: 'var(--bg-subtle)',
-                                border: '1px solid var(--border-default)',
-                                borderRadius: '6px',
-                                padding: '8px 10px',
-                                fontSize: '11px',
-                                fontWeight: 600,
-                                color: 'var(--text-secondary)',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '6px'
-                            }}
-                        >
-                            <ArrowRight size={12} style={{ transform: 'rotate(180deg)' }} /> Back to ATS Matrix
-                        </button>
-                    </div>
-
-                    {/* Right Main Content Area for Tools */}
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                        {/* Top Context & Action Bar */}
-                        <div style={{
-                            padding: '14px 24px',
-                            background: 'var(--card-bg)',
-                            borderBottom: '1px solid var(--border-default)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            boxShadow: 'var(--card-shadow)'
-                        }}>
+                return (
+                    <div style={{ flex: 1, padding: '24px 32px', overflowY: 'auto', background: 'var(--bg-app)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
                             <div>
-                                <h1 style={{ fontSize: '16px', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
-                                    {activeToolId === 'single' ? 'Single Resume Full Inspection' :
-                                     activeToolId === 'audit' ? 'Resume ATS Parseability & Health Audit' :
-                                     activeToolId === 'matcher' ? '1-on-1 Resume vs Job Description Matcher' :
-                                     activeToolId === 'skills' ? 'Automated Skill Extraction & Taxonomy' :
-                                     activeToolId === 'bullets' ? 'Bullet Point Action & Impact Review' :
-                                     activeToolId === 'summarizer' ? 'Executive Recruiter Summary Generator' :
-                                     activeToolId === 'semantic' ? 'Deep BERT Semantic Cosine Matcher' :
-                                     activeToolId === 'scorecard' ? 'Resume Multi-Factor Score Card' :
-                                     activeToolId === 'roles' ? 'Candidate Job Role Match Predictor' :
-                                     'AI Interview Coach & Copilot'}
+                                <h1 style={{ fontSize: '20px', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                                    Hiring Pipeline & Evaluation Analytics
                                 </h1>
-                                <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
-                                    Analyze candidate resumes individually with specialized neural parsing, taxonomy classification, and LLM reasoning.
+                                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                                    Screening accuracy, stage conversion rates, and skill distribution {selectedOpening ? `for ${selectedOpening.title}` : 'across all openings'}.
                                 </p>
                             </div>
-
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                {/* Quick Candidate Loader Dropdown */}
-                                <select
-                                    onChange={(e) => {
-                                        const c = evaluatedCandidates.find(cand => cand.candidate_id === e.target.value);
-                                        if (c) {
-                                            const text = c.raw_text || c.summary || c.experience_summary || '';
-                                            setToolResumeText(text);
-                                            handleRunCandidateTool(activeToolId, text);
-                                        }
-                                    }}
-                                    style={{
-                                        background: 'var(--bg-subtle)',
-                                        border: '1px solid var(--border-default)',
-                                        borderRadius: '6px',
-                                        padding: '6px 10px',
-                                        fontSize: '11px',
-                                        color: 'var(--text-primary)',
-                                        cursor: 'pointer',
-                                        outline: 'none'
-                                    }}
-                                >
-                                    <option value="">Load Evaluated Candidate...</option>
-                                    {evaluatedCandidates.map(c => (
-                                        <option key={c.candidate_id} value={c.candidate_id}>
-                                            {c.name} (Score: {(c.overall_score / 20).toFixed(1)})
-                                        </option>
-                                    ))}
-                                </select>
-
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
+                                    <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Filter by Job:</span>
+                                    <select
+                                        value={analyticsOpeningFilter}
+                                        onChange={(e) => setAnalyticsOpeningFilter(e.target.value)}
+                                        style={{
+                                            background: 'var(--card-bg)',
+                                            border: '1px solid var(--border-default)',
+                                            borderRadius: '6px',
+                                            padding: '6px 10px',
+                                            fontSize: '12px',
+                                            fontWeight: 600,
+                                            color: 'var(--text-primary)',
+                                            outline: 'none',
+                                            cursor: 'pointer',
+                                            boxShadow: 'var(--card-shadow)'
+                                        }}
+                                    >
+                                        <option value="all">All Job Openings Aggregate</option>
+                                        {positions.map(p => (
+                                            <option key={p.id} value={p.id}>{p.title} ({p.jobId})</option>
+                                        ))}
+                                    </select>
+                                </div>
                                 <button
-                                    onClick={() => handleRunCandidateTool(activeToolId, toolResumeText)}
-                                    disabled={toolLoading}
+                                    onClick={() => setActiveNav('positions')}
                                     style={{
                                         background: '#059669',
                                         color: '#ffffff',
                                         border: 'none',
+                                        padding: '8px 16px',
                                         borderRadius: '6px',
-                                        padding: '6px 14px',
-                                        fontSize: '11px',
+                                        fontSize: '12px',
                                         fontWeight: 600,
-                                        cursor: toolLoading ? 'not-allowed' : 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '6px',
-                                        boxShadow: '0 2px 6px rgba(5, 150, 105, 0.3)'
+                                        cursor: 'pointer',
+                                        boxShadow: '0 2px 8px rgba(5, 150, 105, 0.3)'
                                     }}
                                 >
-                                    {toolLoading ? <RefreshCw size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Zap size={12} />}
-                                    <span>{toolLoading ? 'Analyzing...' : 'Run Analysis'}</span>
+                                    Go to ATS Matrix &rarr;
                                 </button>
                             </div>
                         </div>
 
-                        {/* Tool Body */}
-                        <div style={{ flex: 1, display: 'flex', overflow: 'hidden', padding: '18px 24px', gap: '18px' }}>
-                            {/* Left Pane: Resume Input */}
-                            <div style={{
-                                width: '38%',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                background: 'var(--card-bg)',
-                                border: '1px solid var(--border-default)',
-                                borderRadius: '10px',
-                                padding: '16px',
-                                boxShadow: 'var(--card-shadow)',
-                                gap: '10px'
-                            }}>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                    <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                        Resume Text Input
-                                    </span>
-                                    <button
-                                        onClick={() => {
-                                            const demo = evaluatedCandidates[0];
-                                            if (demo) {
-                                                const text = demo.raw_text || demo.summary || '';
-                                                setToolResumeText(text);
-                                                handleRunCandidateTool(activeToolId, text);
-                                            }
-                                        }}
-                                        style={{
-                                            background: 'transparent',
-                                            border: 'none',
-                                            color: '#059669',
-                                            fontSize: '11px',
-                                            fontWeight: 600,
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        Load Sample CV
-                                    </button>
+                        {/* Metric Cards Row - Elevated floating cards */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+                            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-default)', borderRadius: '10px', padding: '18px', boxShadow: 'var(--card-shadow)' }}>
+                                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>Total Evaluated Resumes</div>
+                                <div style={{ fontSize: '30px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
+                                    {targetCandidates.length}
                                 </div>
-
-                                <textarea
-                                    value={toolResumeText}
-                                    onChange={(e) => setToolResumeText(e.target.value)}
-                                    placeholder="Paste candidate resume text or select a candidate from the dropdown above..."
-                                    style={{
-                                        flex: 1,
-                                        padding: '10px',
-                                        fontSize: '11px',
-                                        fontFamily: 'monospace',
-                                        lineHeight: 1.6,
-                                        borderRadius: '6px',
-                                        border: '1px solid var(--border-default)',
-                                        background: 'var(--bg-subtle)',
-                                        color: 'var(--text-primary)',
-                                        resize: 'none',
-                                        outline: 'none'
-                                    }}
-                                />
-
-                                {(activeToolId === 'matcher' || activeToolId === 'semantic') && (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', height: '140px' }}>
-                                        <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                                            Comparison Job Description:
-                                        </span>
-                                        <textarea
-                                            value={toolJdText || activePosition.description}
-                                            onChange={(e) => setToolJdText(e.target.value)}
-                                            style={{
-                                                flex: 1,
-                                                padding: '8px',
-                                                fontSize: '10px',
-                                                borderRadius: '6px',
-                                                border: '1px solid var(--border-default)',
-                                                background: 'var(--bg-subtle)',
-                                                color: 'var(--text-primary)',
-                                                resize: 'none',
-                                                outline: 'none'
-                                            }}
-                                        />
-                                    </div>
-                                )}
+                                <div style={{ fontSize: '11px', color: '#059669', marginTop: '4px', fontWeight: 500 }}>Multi-format parsed (PDF/DOCX/TXT)</div>
                             </div>
 
-                            {/* Right Pane: Tool Execution Output */}
-                            <div style={{
-                                flex: 1,
-                                display: 'flex',
-                                flexDirection: 'column',
-                                background: 'var(--card-bg)',
-                                border: '1px solid var(--border-default)',
-                                borderRadius: '10px',
-                                padding: '18px',
-                                boxShadow: 'var(--card-shadow)',
-                                overflowY: 'auto'
-                            }}>
-                                {toolError && (
-                                    <div style={{ padding: '12px 14px', borderRadius: '6px', background: 'var(--score-low-bg)', border: '1px solid var(--score-low-border)', color: 'var(--score-low)', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-                                        <AlertCircle size={15} />
-                                        <span>{toolError}</span>
+                            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-default)', borderRadius: '10px', padding: '18px', boxShadow: 'var(--card-shadow)' }}>
+                                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>Top Contenders</div>
+                                <div style={{ fontSize: '30px', fontWeight: 700, color: '#059669', marginTop: '4px' }}>
+                                    {topContenders}
+                                </div>
+                                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>Score &ge; 80% (Ready for Offer)</div>
+                            </div>
+
+                            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-default)', borderRadius: '10px', padding: '18px', boxShadow: 'var(--card-shadow)' }}>
+                                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>Average ATS Score</div>
+                                <div style={{ fontSize: '30px', fontWeight: 700, color: '#2563eb', marginTop: '4px' }}>
+                                    {avgScore}%
+                                </div>
+                                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>Semantic AI Match Fit</div>
+                            </div>
+
+                            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-default)', borderRadius: '10px', padding: '18px', boxShadow: 'var(--card-shadow)' }}>
+                                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>Interview Invitations</div>
+                                <div style={{ fontSize: '30px', fontWeight: 700, color: '#7c3aed', marginTop: '4px' }}>
+                                    {interviewCount + offerCount}
+                                </div>
+                                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>Recruiter actioned pipeline</div>
+                            </div>
+                        </div>
+
+                        {/* Pipeline Funnel Card */}
+                        <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-default)', borderRadius: '10px', padding: '20px', marginBottom: '24px', boxShadow: 'var(--card-shadow)' }}>
+                            <h3 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 16px 0', color: 'var(--text-primary)' }}>
+                                Recruitment Stage Conversion Funnel {selectedOpening ? `(${selectedOpening.jobId})` : ''}
+                            </h3>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+                                <div style={{ background: 'var(--bg-subtle)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-default)' }}>
+                                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Stage 1: Screened</div>
+                                    <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
+                                        {targetCandidates.length}
                                     </div>
-                                )}
-
-                                {toolLoading ? (
-                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '320px', gap: '12px' }}>
-                                        <RefreshCw size={28} style={{ animation: 'spin 1s linear infinite', color: '#059669' }} />
-                                        <div style={{ fontSize: '14px', fontWeight: 700 }}>Processing Neural Analysis...</div>
-                                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Running backend engine for {activeToolId.toUpperCase()}.</div>
+                                    <div style={{ height: '6px', background: 'var(--border-default)', borderRadius: '3px', marginTop: '8px' }}>
+                                        <div style={{ width: '100%', height: '100%', background: '#64748b', borderRadius: '3px' }} />
                                     </div>
-                                ) : !toolResult ? (
-                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '320px', gap: '10px', color: 'var(--text-tertiary)' }}>
-                                        <Wrench size={36} style={{ color: 'var(--text-tertiary)' }} />
-                                        <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>Select a Tool and Run Analysis</div>
-                                        <div style={{ fontSize: '12px', maxWidth: '340px', textAlign: 'center' }}>
-                                            Choose any module from the left menu (Audit, Matcher, Skills, Bullet Review, AI Coach) and click Run Analysis.
-                                        </div>
+                                </div>
+                                <div style={{ background: 'var(--bg-subtle)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-default)' }}>
+                                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Stage 2: Technical Interview</div>
+                                    <div style={{ fontSize: '24px', fontWeight: 700, color: '#2563eb', marginTop: '4px' }}>
+                                        {interviewCount}
                                     </div>
-                                ) : (
-                                    /* Dynamic Tool Output Display */
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-default)', paddingBottom: '10px' }}>
-                                            <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                                Analysis Results
-                                            </span>
-                                            <span style={{ fontSize: '11px', color: '#059669', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                                <Check size={12} strokeWidth={2.5} /> Completed Successfully
-                                            </span>
-                                        </div>
-
-                                        {/* Result Display for Resume Audit */}
-                                        {activeToolId === 'audit' && (
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                                <div style={{ display: 'flex', gap: '12px' }}>
-                                                    <div style={{ flex: 1, padding: '12px', background: 'var(--bg-subtle)', borderRadius: '8px', border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
-                                                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Overall Grade</div>
-                                                        <div style={{ fontSize: '24px', fontWeight: 800, color: '#059669' }}>
-                                                            {toolResult.score_card?.overall_grade || 'A'}
-                                                        </div>
-                                                    </div>
-                                                    <div style={{ flex: 1, padding: '12px', background: 'var(--bg-subtle)', borderRadius: '8px', border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
-                                                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>ATS Score</div>
-                                                        <div style={{ fontSize: '24px', fontWeight: 800, color: '#2563eb' }}>
-                                                            {toolResult.ats?.score || toolResult.score_card?.overall_score || 85}%
-                                                        </div>
-                                                    </div>
-                                                    <div style={{ flex: 1, padding: '12px', background: 'var(--bg-subtle)', borderRadius: '8px', border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
-                                                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Total Bullets</div>
-                                                        <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)' }}>
-                                                            {toolResult.bullets?.total || 6}
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                {/* Issues Detected */}
-                                                {toolResult.ats?.issues?.length > 0 && (
-                                                    <div style={{ padding: '12px', borderRadius: '8px', background: 'var(--score-low-bg)', border: '1px solid var(--score-low-border)' }}>
-                                                        <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--score-low)', marginBottom: '6px' }}>
-                                                            ATS Formatting Issues Detected:
-                                                        </div>
-                                                        {toolResult.ats.issues.map((iss, i) => (
-                                                            <div key={i} style={{ fontSize: '11px', color: 'var(--score-low)', marginBottom: '3px' }}>
-                                                                • {iss}
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-
-                                        {/* Result Display for Skill Extractor */}
-                                        {activeToolId === 'skills' && (
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                                                    Categorized Technical Taxonomy:
-                                                </div>
-                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                                                    {(toolResult.skills || toolResult.technical || Object.values(toolResult).flat() || []).map((sk, i) => (
-                                                        <span
-                                                            key={i}
-                                                            style={{
-                                                                background: 'var(--score-high-bg)',
-                                                                color: 'var(--score-high)',
-                                                                border: '1px solid var(--score-high-border)',
-                                                                padding: '4px 10px',
-                                                                borderRadius: '6px',
-                                                                fontSize: '11px',
-                                                                fontWeight: 600
-                                                            }}
-                                                        >
-                                                            {typeof sk === 'string' ? sk : sk.name || JSON.stringify(sk)}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Result Display for Bullet Review */}
-                                        {activeToolId === 'bullets' && (
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                                                    Analyzed Bullets ({toolResult.bullets?.length || 0}):
-                                                </div>
-                                                {(toolResult.bullets || []).map((b, i) => (
-                                                    <div key={i} style={{ padding: '10px', borderRadius: '6px', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', fontSize: '11px' }}>
-                                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                                                            <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Bullet #{i + 1}</span>
-                                                            <span style={{
-                                                                fontSize: '10px',
-                                                                fontWeight: 700,
-                                                                padding: '1px 6px',
-                                                                borderRadius: '4px',
-                                                                background: b.rating === 'Strong' ? 'var(--score-high-bg)' : 'var(--score-mid-bg)',
-                                                                color: b.rating === 'Strong' ? 'var(--score-high)' : 'var(--score-mid)'
-                                                            }}>
-                                                                {b.rating} ({b.score || 80}/100)
-                                                            </span>
-                                                        </div>
-                                                        <div style={{ color: 'var(--text-secondary)', marginBottom: '4px' }}>{b.text || b.bullet}</div>
-                                                        {b.feedback && <div style={{ color: '#059669', fontStyle: 'italic' }}>Feedback: {b.feedback}</div>}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-
-                                        {/* Result Display for Summarizer */}
-                                        {activeToolId === 'summarizer' && (
-                                            <div style={{ padding: '14px', borderRadius: '8px', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', fontSize: '12px', lineHeight: 1.6 }}>
-                                                <div style={{ fontWeight: 700, color: '#059669', marginBottom: '6px' }}>Generated Executive Summary:</div>
-                                                <p style={{ margin: 0, color: 'var(--text-primary)' }}>
-                                                    {toolResult.summary || toolResult.executive_summary || JSON.stringify(toolResult)}
-                                                </p>
-                                            </div>
-                                        )}
-
-                                        {/* Result Display for AI Coach */}
-                                        {activeToolId === 'coach' && (
-                                            <div style={{ padding: '14px', borderRadius: '8px', background: 'rgba(37, 99, 235, 0.06)', border: '1px solid rgba(37, 99, 235, 0.2)', fontSize: '12px', lineHeight: 1.6 }}>
-                                                <div style={{ fontWeight: 700, color: '#2563eb', marginBottom: '6px' }}>AI Interview Coach Evaluation:</div>
-                                                <div style={{ whiteSpace: 'pre-wrap', color: 'var(--text-primary)' }}>
-                                                    {toolResult.response || toolResult.advice || toolResult.message || JSON.stringify(toolResult, null, 2)}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Generic Output Fallback */}
-                                        {['matcher', 'semantic', 'scorecard', 'roles', 'single'].includes(activeToolId) && (
-                                            <div style={{ background: 'var(--bg-subtle)', padding: '12px', borderRadius: '6px', border: '1px solid var(--border-subtle)', fontFamily: 'monospace', fontSize: '11px', whiteSpace: 'pre-wrap', maxHeight: '420px', overflowY: 'auto' }}>
-                                                {JSON.stringify(toolResult, null, 2)}
-                                            </div>
-                                        )}
+                                    <div style={{ height: '6px', background: 'var(--border-default)', borderRadius: '3px', marginTop: '8px' }}>
+                                        <div style={{ width: targetCandidates.length ? `${(interviewCount / targetCandidates.length) * 100}%` : '0%', height: '100%', background: '#2563eb', borderRadius: '3px' }} />
                                     </div>
-                                )}
+                                </div>
+                                <div style={{ background: 'var(--bg-subtle)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-default)' }}>
+                                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Stage 3: Final Offer</div>
+                                    <div style={{ fontSize: '24px', fontWeight: 700, color: '#059669', marginTop: '4px' }}>
+                                        {offerCount}
+                                    </div>
+                                    <div style={{ height: '6px', background: 'var(--border-default)', borderRadius: '3px', marginTop: '8px' }}>
+                                        <div style={{ width: targetCandidates.length ? `${(offerCount / targetCandidates.length) * 100}%` : '0%', height: '100%', background: '#059669', borderRadius: '3px' }} />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Skill Demand vs Supply */}
+                        <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-default)', borderRadius: '10px', padding: '20px', boxShadow: 'var(--card-shadow)' }}>
+                            <h3 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 12px 0', color: 'var(--text-primary)' }}>
+                                Core Mandatory Skills {selectedOpening ? `(${selectedOpening.title})` : 'Distribution'}
+                            </h3>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                {skillsToShow.map((skill, i) => (
+                                    <span
+                                        key={i}
+                                        style={{
+                                            background: 'var(--score-high-bg)',
+                                            color: 'var(--score-high)',
+                                            border: '1px solid var(--score-high-border)',
+                                            padding: '5px 12px',
+                                            borderRadius: '6px',
+                                            fontSize: '12px',
+                                            fontWeight: 600,
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '5px'
+                                        }}
+                                    >
+                                        <Check size={12} strokeWidth={2.5} /> {skill}
+                                    </span>
+                                ))}
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
+                );
+            })()}
 
             {/* ══════════════════════════════════════════════════════════════
                 FLAGSHIP 4-COLUMN VIEW (All Sections Pop Out with Depth)
@@ -1987,7 +1647,7 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                             {/* Position Title & Spec Badges */}
                             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
                                 <div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
                                         <span style={{
                                             fontFamily: 'monospace',
                                             fontSize: '11px',
@@ -2000,6 +1660,26 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                         }}>
                                             {activePosition.jobId}
                                         </span>
+                                        <select
+                                            value={activePosition.status}
+                                            onChange={(e) => handleUpdatePositionStatus(activePosition.id, e.target.value)}
+                                            title="Click to change job status (Open, Draft, Closed)"
+                                            style={{
+                                                fontSize: '11px',
+                                                fontWeight: 700,
+                                                padding: '2px 8px',
+                                                borderRadius: '999px',
+                                                cursor: 'pointer',
+                                                border: `1px solid ${activePosition.status === 'Open' ? 'var(--score-high-border)' : activePosition.status === 'Draft' ? 'rgba(217, 119, 6, 0.4)' : 'rgba(220, 38, 38, 0.4)'}`,
+                                                background: activePosition.status === 'Open' ? 'var(--score-high-bg)' : activePosition.status === 'Draft' ? 'rgba(217, 119, 6, 0.12)' : 'rgba(220, 38, 38, 0.12)',
+                                                color: activePosition.status === 'Open' ? '#059669' : activePosition.status === 'Draft' ? '#d97706' : '#dc2626',
+                                                outline: 'none'
+                                            }}
+                                        >
+                                            <option value="Open">Open</option>
+                                            <option value="Draft">Draft</option>
+                                            <option value="Closed">Closed</option>
+                                        </select>
                                         <h2 style={{ fontSize: '17px', fontWeight: 800, margin: 0, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
                                             {activePosition.title}
                                         </h2>
@@ -2223,31 +1903,92 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                 </div>
                             </div>
 
-                            {/* Live Evaluation Summary Banner */}
+                            {/* Live Evaluation Summary Banner (Clean, modern recruiter badges) */}
                             {evaluatedCandidates.length > 0 && (
                                 <div style={{
-                                    marginTop: '10px',
-                                    padding: '6px 12px',
-                                    borderRadius: '6px',
+                                    marginTop: '12px',
+                                    padding: '8px 12px',
+                                    borderRadius: '8px',
                                     background: 'var(--bg-subtle)',
                                     border: '1px solid var(--border-default)',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'space-between',
-                                    fontSize: '11px',
-                                    color: 'var(--text-secondary)'
+                                    flexWrap: 'wrap',
+                                    gap: '8px'
                                 }}>
-                                    <span>
-                                        Evaluated: <strong style={{ color: 'var(--text-primary)' }}>{evaluatedCandidates.length} Candidates</strong> against <strong style={{ color: '#059669' }}>{activePosition.title}</strong>
-                                    </span>
-                                    <span style={{ display: 'flex', gap: '8px' }}>
-                                        <span style={{ color: '#059669', fontWeight: 600 }}>
-                                            ● {evaluatedCandidates.filter(c => c.overall_score >= 80).length} Ready for Offer (&ge;80%)
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Evaluated:</span>
+                                        <span style={{
+                                            background: 'var(--card-bg)',
+                                            border: '1px solid var(--border-default)',
+                                            padding: '2px 8px',
+                                            borderRadius: '4px',
+                                            fontWeight: 700,
+                                            color: 'var(--text-primary)'
+                                        }}>
+                                            {evaluatedCandidates.length} Candidates
                                         </span>
-                                        <span style={{ color: '#2563eb', fontWeight: 600 }}>
-                                            ● {evaluatedCandidates.filter(c => c.overall_score >= 60 && c.overall_score < 80).length} Interview Qualified
+                                        <span style={{ color: 'var(--text-tertiary)' }}>for</span>
+                                        <span style={{
+                                            color: '#059669',
+                                            fontWeight: 700,
+                                            maxWidth: '220px',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap'
+                                        }}>
+                                            {activePosition.title}
                                         </span>
-                                    </span>
+                                    </div>
+
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                        <span style={{
+                                            fontSize: '11px',
+                                            fontWeight: 700,
+                                            padding: '2px 8px',
+                                            borderRadius: '999px',
+                                            background: 'var(--score-high-bg)',
+                                            color: '#059669',
+                                            border: '1px solid var(--score-high-border)',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '4px'
+                                        }}>
+                                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#059669' }} />
+                                            {evaluatedCandidates.filter(c => c.overall_score >= 80).length} Ready for Offer (&ge;80%)
+                                        </span>
+                                        <span style={{
+                                            fontSize: '11px',
+                                            fontWeight: 700,
+                                            padding: '2px 8px',
+                                            borderRadius: '999px',
+                                            background: 'rgba(37, 99, 235, 0.1)',
+                                            color: '#2563eb',
+                                            border: '1px solid rgba(37, 99, 235, 0.3)',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '4px'
+                                        }}>
+                                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#2563eb' }} />
+                                            {evaluatedCandidates.filter(c => c.overall_score >= 60 && c.overall_score < 80).length} Interview
+                                        </span>
+                                        <span style={{
+                                            fontSize: '11px',
+                                            fontWeight: 700,
+                                            padding: '2px 8px',
+                                            borderRadius: '999px',
+                                            background: 'rgba(220, 38, 38, 0.08)',
+                                            color: '#dc2626',
+                                            border: '1px solid rgba(220, 38, 38, 0.25)',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '4px'
+                                        }}>
+                                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#dc2626' }} />
+                                            {evaluatedCandidates.filter(c => c.overall_score < 60).length} Disqualified
+                                        </span>
+                                    </div>
                                 </div>
                             )}
 
@@ -2308,7 +2049,7 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                             {isAnalyzing ? (
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '320px', gap: '12px' }}>
                                     <RefreshCw size={26} style={{ animation: 'spin 1s linear infinite', color: '#059669' }} />
-                                    <div style={{ fontSize: '14px', fontWeight: 700 }}>Evaluating Resumes with SentenceTransformers & BERT...</div>
+                                    <div style={{ fontSize: '14px', fontWeight: 700 }}>Evaluating Resumes with Semantic AI Matching...</div>
                                     <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Comparing semantic context, mapping mandatory skills, and evaluating career duration.</div>
                                 </div>
                             ) : errorMsg ? (
@@ -2727,26 +2468,7 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                                 gap: '6px'
                                             }}
                                         >
-                                            <Download size={13} style={{ color: '#059669' }} /> Download CV (.txt)
-                                        </button>
-                                        <button
-                                            onClick={() => handleLaunchCandidateInTool(selectedCandidate, 'audit')}
-                                            style={{
-                                                background: 'var(--bg-subtle)',
-                                                border: '1px solid var(--border-default)',
-                                                borderRadius: '6px',
-                                                padding: '6px 12px',
-                                                fontSize: '11px',
-                                                fontWeight: 600,
-                                                color: '#0891b2',
-                                                cursor: 'pointer',
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                gap: '5px'
-                                            }}
-                                            title="Inspect this candidate in the AI Tools Suite (Resume Audit, Bullet Review, AI Coach)"
-                                        >
-                                            <Wrench size={12} /> AI Suite
+                                            <Download size={13} style={{ color: '#059669' }} /> Download CV {selectedCandidate.filename ? `(${selectedCandidate.filename.split('.').pop().toUpperCase()})` : ''}
                                         </button>
                                         <button
                                             onClick={() => handleCopyText(selectedCandidate.email, 'Email')}
@@ -2858,7 +2580,7 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                                                 <div>
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '3px' }}>
                                                         <span style={{ color: 'var(--text-secondary)' }}>
-                                                            <strong>1. Dense Semantic Context (BERT):</strong>
+                                                            <strong>1. Semantic Context Fit:</strong>
                                                         </span>
                                                         <strong style={{ color: '#2563eb' }}>
                                                             {selectedCandidate.score_breakdown?.semantic_score || 0}%
@@ -3509,6 +3231,35 @@ Python, PyTorch, Machine Learning, Natural Language Processing, Transformers, Fa
                         </div>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, marginBottom: '4px' }}>
+                                        Job ID / Requisition #
+                                    </label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. REQ-106"
+                                        value={newPosJobId}
+                                        onChange={(e) => setNewPosJobId(e.target.value)}
+                                        style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-default)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontSize: '12px' }}
+                                    />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, marginBottom: '4px' }}>
+                                        Initial Status
+                                    </label>
+                                    <select
+                                        value={newPosStatus}
+                                        onChange={(e) => setNewPosStatus(e.target.value)}
+                                        style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-default)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontSize: '12px' }}
+                                    >
+                                        <option value="Open">Open</option>
+                                        <option value="Draft">Draft</option>
+                                        <option value="Closed">Closed</option>
+                                    </select>
+                                </div>
+                            </div>
+
                             <div>
                                 <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, marginBottom: '4px' }}>
                                     Job Title *

@@ -25,7 +25,7 @@ export default function SemanticMatcherPage() {
     return (
         <div className="page">
             <h1 className="pg-title">Semantic Matcher</h1>
-            <p className="pg-desc">BERT-powered matching using sentence-transformers. Finds "JavaScript" from "JS", "Machine Learning" from "ML", and more.</p>
+            <p className="pg-desc">Advanced semantic AI matching. Recognizes synonyms, context, and intent (e.g. "JavaScript" from "JS", "Machine Learning" from "ML").</p>
 
             <div className="btn-row">
                 <button className="btn btn-ghost" onClick={() => setResume(SAMPLE_RESUME)}><Sparkles size={13} /> Sample Resume</button>
@@ -46,7 +46,7 @@ export default function SemanticMatcherPage() {
             <div className="btn-row"><button className="btn btn-primary" onClick={run} disabled={loading}><Network size={14} /> {loading ? 'Matching...' : 'Semantic Match'}</button></div>
 
             {error && <div className="alrt alrt-err"><AlertTriangle size={15} /> {error}</div>}
-            {loading && <div className="ld"><div className="spin" /><span className="ld-msg">Computing BERT embeddings... (first run may take a minute to load model)</span></div>}
+            {loading && <div className="ld"><div className="spin" /><span className="ld-msg">Computing Semantic AI embeddings...</span></div>}
 
             {result && (
                 <div className="res">

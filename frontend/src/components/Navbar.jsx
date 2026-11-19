@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Briefcase, Users, BarChart2, Settings, Moon, Sun, Wrench } from 'lucide-react';
+import { Home, Briefcase, Users, BarChart2, Settings, Moon, Sun } from 'lucide-react';
 
 export default function Sidebar({ theme, toggleTheme, activeNav, setActiveNav, onOpenSettings }) {
     return (
@@ -150,39 +150,7 @@ export default function Sidebar({ theme, toggleTheme, activeNav, setActiveNav, o
                     )}
                 </button>
 
-                {/* 4. Candidate AI Tools Suite (Resume Audit, Bullet Review, AI Coach, Role Predictor) */}
-                <button
-                    onClick={() => setActiveNav('tools')}
-                    title="Candidate Tools Suite: Resume Audit, Bullet Review, AI Coach, Role Predictor"
-                    style={{
-                        width: '38px',
-                        height: '38px',
-                        borderRadius: '6px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        position: 'relative',
-                        color: activeNav === 'tools' ? '#06b6d4' : 'var(--text-tertiary)',
-                        background: activeNav === 'tools' ? (theme === 'dark' ? 'rgba(6, 182, 212, 0.15)' : '#ecfeff') : 'transparent',
-                        border: activeNav === 'tools' ? '1px solid rgba(6, 182, 212, 0.3)' : '1px solid transparent',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease'
-                    }}
-                >
-                    <Wrench size={18} />
-                    {activeNav === 'tools' && (
-                        <span style={{
-                            position: 'absolute',
-                            left: '-6px',
-                            width: '3px',
-                            height: '18px',
-                            background: '#06b6d4',
-                            borderRadius: '0 2px 2px 0'
-                        }} />
-                    )}
-                </button>
-
-                {/* 5. Recruitment Pipeline Analytics */}
+                {/* 4. Recruitment Pipeline Analytics */}
                 <button
                     onClick={() => setActiveNav('analytics')}
                     title="Recruitment Pipeline Analytics"

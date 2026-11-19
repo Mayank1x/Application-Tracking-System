@@ -242,7 +242,7 @@ export default function SettingsModal({
                             <div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '4px' }}>
                                     <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
-                                        Dense Semantic Similarity (SentenceTransformers):
+                                        Dense Semantic AI Matching:
                                     </span>
                                     <strong style={{ color: '#2563eb' }}>{formSettings.weights.semantic}%</strong>
                                 </div>
@@ -336,13 +336,13 @@ export default function SettingsModal({
                             }}
                         >
                             <option value="sentence-transformers/all-MiniLM-L6-v2">
-                                all-MiniLM-L6-v2 (Vectorized CPU Batch, 384-dim, &lt;0.8s) - Active
+                                High-Speed Semantic Matching (Standard Embeddings, &lt;0.8s) - Active
                             </option>
                             <option value="sentence-transformers/all-mpnet-base-v2">
-                                all-mpnet-base-v2 (Deep Contextual Bert, 768-dim)
+                                Deep Contextual Semantic Matching (768-dim High Precision)
                             </option>
                             <option value="BAAI/bge-small-en-v1.5">
-                                bge-small-en-v1.5 (Top Ranked MTEB Retrieval Model)
+                                Enterprise MTEB Semantic Retrieval Model
                             </option>
                         </select>
                     </div>

@@ -3,12 +3,16 @@ main.py — FastAPI backend: Hybrid NLP + Gemini AI resume analysis.
 """
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
-from fastapi.responses import Response
+from fastapi.responses import Response, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional
 import uvicorn
 import re
+import os
+
+UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 from nlp_engine import (
     analyze_resume_job_match, compute_ats_score,
@@ -311,6 +315,12 @@ async def batch_rank(
                 continue
             try:
                 content = await file.read()
+                # Persist original file bytes to allow downloading in original format (.pdf, .docx, .txt)
+                safe_name = os.path.basename(file.filename)
+                save_path = os.path.join(UPLOAD_DIR, safe_name)
+                with open(save_path, "wb") as f_out:
+                    f_out.write(content)
+
                 text, _ = parse_file(content, file.filename)
                 profile = extract_candidate_profile(text, filename=file.filename)
                 candidate_profiles.append(profile)
@@ -418,6 +428,23 @@ async def sample_demo_data_post(req: DemoBatchRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Demo evaluation error: {str(e)}")
+
+
+@app.get("/api/download-resume/{filename}")
+async def download_resume(filename: str):
+    """Serve resume in its original format (.pdf, .docx, .txt)."""
+    # 1. Check uploads directory
+    candidate_path = os.path.join(UPLOAD_DIR, filename)
+    if os.path.isfile(candidate_path):
+        return FileResponse(path=candidate_path, filename=filename, media_type="application/octet-stream")
+
+    # 2. Check test_resumes directory (in parent directory)
+    base_dir = os.path.dirname(os.path.dirname(__file__))
+    test_path = os.path.join(base_dir, "test_resumes", filename)
+    if os.path.isfile(test_path):
+        return FileResponse(path=test_path, filename=filename, media_type="application/octet-stream")
+
+    raise HTTPException(status_code=404, detail="Original resume file not found.")
 
 
 if __name__ == "__main__":
